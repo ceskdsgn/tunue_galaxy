@@ -1,0 +1,53 @@
+name: tunue_collection
+description: Un'app per il collezionismo di carte Tunuè
+
+# La versione segue il pattern [major].[minor].[patch]+[build]
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.19.0 <3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.2
+  
+  # Gestione stato
+  provider: ^6.0.5
+  
+  # Localizzazione e formattazione
+  intl: ^0.19.0
+  
+  # Persistenza dati
+  shared_preferences: ^2.1.0
+  
+  # Utilità
+  path_provider: ^2.0.14
+  uuid: ^3.0.7
+  supabase_flutter: ^2.3.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Risorse statiche
+  assets:
+    - assets/images/
+    - assets/images/cards/
+    - assets/images/news/
+  
+  # Fonts personalizzati
+  fonts:
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-Regular.ttf
+        - asset: assets/fonts/Montserrat-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Montserrat-Light.ttf
+          weight: 300
