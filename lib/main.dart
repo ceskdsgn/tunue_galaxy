@@ -9,6 +9,7 @@ import 'models/user.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/collection_page.dart';
 import 'screens/fair_page.dart';
+import 'screens/game_page.dart';
 import 'screens/home_page.dart';
 import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
@@ -171,6 +172,7 @@ class _MainScreenState extends State<MainScreen> {
     final List<Widget> pages = [
       const HomePage(),
       const CollectionPage(),
+      const GamePage(),
       const FairPage(),
       const ProfileScreen(),
     ];
@@ -197,6 +199,10 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.collections),
               label: 'Collezione',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.videogame_asset),
+              label: 'Giochi',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.event),

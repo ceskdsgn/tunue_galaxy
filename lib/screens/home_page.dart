@@ -10,7 +10,10 @@ import '../services/auth_service.dart';
 import '../services/card_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/card_widget.dart';
+import '../widgets/countdown_timer.dart';
 import '../widgets/pack_widget.dart';
+import 'lucky_wheel_page.dart';
+import 'missions_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -216,6 +219,22 @@ class _HomePageState extends State<HomePage>
     return '$hours:$minutes:$seconds';
   }
 
+  void _navigateToLuckyWheel() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const LuckyWheelPage(),
+      ),
+    );
+  }
+
+  void _navigateToMissions() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MissionsPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<User>(context);
@@ -254,75 +273,177 @@ class _HomePageState extends State<HomePage>
     final canOpenFreePack = user.canOpenFreePack();
     final timeLeft = user.timeUntilNextFreePack();
     final coinCost = timeLeft.inHours + 1;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text('Scegli un pacchetto da aprire:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        Row(
-          children: packs.map((pack) {
-            final isSelected = selectedPack?.id == pack.id;
-            return Flexible(
-              flex: isSelected ? 4 : 2,
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeInOut,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('Scegli un pacchetto da aprire:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Row(
+            children: packs.map((pack) {
+              final isSelected = selectedPack?.id == pack.id;
+              return Flexible(
+                flex: isSelected ? 4 : 2,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOut,
+                  child: GestureDetector(
+                    onTap: () => _selectPack(pack),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      child: PackWidget(
+                        pack: pack,
+                        showDetails: true,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          CountdownTimer(
+            duration: user.timeUntilNextFreePack(),
+            onComplete: () {
+              setState(() {}); // Forza il rebuild per aggiornare l'interfaccia
+            },
+            textStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          if (selectedPack != null)
+            AnimatedOpacity(
+              opacity: 1.0,
+              duration: const Duration(milliseconds: 250),
+              child: canOpenFreePack
+                  ? ElevatedButton(
+                      onPressed: _openPack,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 16),
+                        textStyle: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      child: const Text('Apri Pacchetto'),
+                    )
+                  : ElevatedButton(
+                      onPressed: _unlockWithCoins,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 16),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      child: Text('Sblocca con $coinCost Tunuè Coin'),
+                    ),
+            ),
+
+          // Separatore
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Divider(thickness: 1),
+          ),
+
+          // Sezione per Ruota della Fortuna e Missioni
+          const Text('Altre Attività',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+
+          // Contenitore per le due sezioni
+          Row(
+            children: [
+              // Ruota della Fortuna
+              Expanded(
                 child: GestureDetector(
-                  onTap: () => _selectPack(pack),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    child: PackWidget(
-                      pack: pack,
-                      showDetails: true,
+                  onTap: _navigateToLuckyWheel,
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.motion_photos_on,
+                            size: 40,
+                            color: Colors.amber,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Ruota della Fortuna',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Gira e vinci!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 24),
-        StreamBuilder<int>(
-          stream: Stream.periodic(const Duration(seconds: 1), (x) => x),
-          builder: (context, snapshot) {
-            final timeLeft = user.timeUntilNextFreePack();
-            return Text(
-              'Prossimo pacchetto gratuito tra: ${_formatDuration(timeLeft)}',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        if (selectedPack != null)
-          AnimatedOpacity(
-            opacity: 1.0,
-            duration: const Duration(milliseconds: 250),
-            child: canOpenFreePack
-                ? ElevatedButton(
-                    onPressed: _openPack,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      textStyle: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+              const SizedBox(width: 12),
+              // Missioni
+              Expanded(
+                child: GestureDetector(
+                  onTap: _navigateToMissions,
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Apri Pacchetto'),
-                  )
-                : ElevatedButton(
-                    onPressed: _unlockWithCoins,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                    child: const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.task_alt,
+                            size: 40,
+                            color: Colors.green,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Missioni',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Completa e ottieni ricompense',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Text('Sblocca con $coinCost Tunuè Coin'),
                   ),
+                ),
+              ),
+            ],
           ),
-      ],
+          const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 

@@ -53,6 +53,11 @@ class _CountdownTimerState extends State<CountdownTimer> {
     final minutes = _remainingTime.inMinutes.remainder(60);
     final seconds = _remainingTime.inSeconds.remainder(60);
 
+    // Se il timer è a zero, non mostrare nulla
+    if (_remainingTime.inSeconds <= 0) {
+      return const SizedBox.shrink();
+    }
+
     return Text(
       '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
       style: widget.textStyle ??
