@@ -44,11 +44,6 @@ flutter:
   # Risorse statiche
   assets:
     - assets/images/
-    - assets/images/cards/
-    - assets/images/news/
-    - assets/target_image.jpg
-    - assets/models/animated_model.glb
-    - assets/triangle.png  
   
   # Fonts personalizzati
   fonts:
