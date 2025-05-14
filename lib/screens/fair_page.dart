@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/fair_news.dart';
 import '../services/fair_service.dart';
+import 'ar_viewer_page.dart';
 
 class FairPage extends StatefulWidget {
   const FairPage({super.key});
@@ -51,6 +52,15 @@ class _FairPageState extends State<FairPage>
     }
   }
 
+  void _openARViewer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ARViewerPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -59,6 +69,11 @@ class _FairPageState extends State<FairPage>
       appBar: AppBar(
         title: const Text('Tunuè in Fiera'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.view_in_ar),
+            onPressed: _openARViewer,
+            tooltip: 'Apri Realtà Aumentata',
+          ),
           IconButton(
             icon: Icon(showOnlyEvents ? Icons.event : Icons.article),
             onPressed: () {
