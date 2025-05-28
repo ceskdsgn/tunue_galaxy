@@ -305,6 +305,7 @@ class _HomePageState extends State<HomePage>
           const SizedBox(height: 24),
           CountdownTimer(
             duration: user.timeUntilNextFreePack(),
+            tunueCoins: user.tunueCoins,
             onComplete: () {
               setState(() {}); // Forza il rebuild per aggiornare l'interfaccia
             },

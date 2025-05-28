@@ -226,6 +226,9 @@ class _CollectionPageState extends State<CollectionPage>
   }
 
   Widget _buildCardDetailDialog(CollectionCard card, bool isOwned) {
+    // Debug per vedere il formato dell'URL
+    print('DEBUG Collection: Card ${card.name}, imageUrl: ${card.imageUrl}');
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -299,12 +302,7 @@ class _CollectionPageState extends State<CollectionPage>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: isOwned
-                    ? Image.asset(
-                        card.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Center(child: Icon(Icons.image, size: 80)),
-                      )
+                    ? _buildCardImage(card)
                     : const ColorFiltered(
                         colorFilter: ColorFilter.mode(
                           Colors.grey,
@@ -339,6 +337,86 @@ class _CollectionPageState extends State<CollectionPage>
             ElevatedButton(
               child: const Text('Chiudi'),
               onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardImage(CollectionCard card) {
+    // Se l'URL inizia con http, usa Image.network
+    if (card.imageUrl.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          card.imageUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('Errore caricamento immagine network: $error');
+            return _buildFallbackImage(card);
+          },
+        ),
+      );
+    } else {
+      // Prova prima con il percorso diretto
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          card.imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('Errore caricamento immagine asset: $error');
+            // Se fallisce, prova con il formato del gioco delle carte
+            return Image.asset(
+              'assets/images/cards/${card.name.toLowerCase().replaceAll(' ', '_')}.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error2, stackTrace2) {
+                print('Errore caricamento immagine formato gioco: $error2');
+                return _buildFallbackImage(card);
+              },
+            );
+          },
+        ),
+      );
+    }
+  }
+
+  Widget _buildFallbackImage(CollectionCard card) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CollectionCard.getRarityColor(card.rarity).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image,
+              size: 60,
+              color: CollectionCard.getRarityColor(card.rarity),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              card.name,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: CollectionCard.getRarityColor(card.rarity),
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
