@@ -65,12 +65,12 @@ class _CountdownTimerState extends State<CountdownTimer> {
   }
 
   Widget _buildProgressBar(double progress) {
-    const double barWidth = 280.0;
-    const double barHeight = 24.0;
-    const double iconSize = 32.0;
+    const double barWidth = 216.0;
+    const double barHeight = 16.0;
+    const double iconSize = 56.0;
 
     // Calcola la posizione dell'icona
-    final iconPosition = (barWidth - iconSize) * progress;
+    final iconPosition = (barWidth - iconSize + 40) * progress;
 
     final hours = _remainingTime.inHours;
     final minutes = _remainingTime.inMinutes.remainder(60);
@@ -78,113 +78,204 @@ class _CountdownTimerState extends State<CountdownTimer> {
 
     return Column(
       children: [
-        // Barra di progresso
-        Container(
-          width: barWidth,
-          height: barHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey[300]!, width: 2),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Stack(
-              children: [
-                // Sfondo bianco
-                Container(
+        // Barra di progresso con logo sopra
+        SizedBox(
+          width: barWidth +
+              56, // Aumento lo spazio per il logo che si sposta a destra
+          height:
+              iconSize + 20, // Riduco l'altezza per aderire meglio al contenuto
+          child: Stack(
+            children: [
+              // Barra di progresso centrata verticalmente
+              Positioned(
+                left: 28, // Centro la barra nel container più largo (56/2 = 28)
+                top: (iconSize - barHeight) / 2, // Centra la barra nello stack
+                child: Container(
                   width: barWidth,
                   height: barHeight,
-                  color: Colors.white,
-                ),
-                // Parte verde (progresso)
-                Container(
-                  width: barWidth * progress,
-                  height: barHeight,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF4CAF50),
-                        Color(0xFF8BC34A),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: const Color(0xFFDBDDE7), width: 2.4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3D3D3D).withOpacity(0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 0),
+                        spreadRadius: 0,
+                      ),
+                    ],
                   ),
-                ),
-                // Icona che si muove
-                Positioned(
-                  left: iconPosition,
-                  top: (barHeight - iconSize) / 2,
-                  child: Container(
-                    width: iconSize,
-                    height: iconSize,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Stack(
+                      children: [
+                        // Sfondo bianco
+                        Container(
+                          width: barWidth,
+                          height: barHeight,
+                          color: Colors.white,
+                        ),
+                        // Parte verde (progresso)
+                        Container(
+                          width: barWidth * progress,
+                          height: barHeight,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFF18FB3D),
+                                Color(0xFF4BFF9E),
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.access_time,
-                      color: Color(0xFF4CAF50),
-                      size: 20,
+                  ),
+                ),
+              ),
+              // Badge Tunuè Coins posizionato esattamente sotto il logo
+              Positioned(
+                left: iconPosition +
+                    8 +
+                    (iconSize / 2) -
+                    20, // Aggiusto per seguire il logo
+                top: (iconSize) / 2 + 10, // Più in basso
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF18FB3D),
+                          Color(0xFF4BFF9E),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.20),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      child: Text(
+                        '${widget.tunueCoins}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Tunuè Coins sotto l'icona
-        Container(
-          margin: EdgeInsets.only(left: iconPosition),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.monetization_on,
-                color: Colors.amber,
-                size: 20,
               ),
-              const SizedBox(width: 4),
-              Text(
-                '${widget.tunueCoins}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.amber,
+              // Logo che si muove davanti alla barra (ora sopra il badge)
+              Positioned(
+                left: iconPosition +
+                    8, // Riduco l'offset per spostarlo più a sinistra
+                top: -2, // Alzato di soli 2 pixel
+                child: SizedBox(
+                  width: iconSize,
+                  height: iconSize,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0),
+                    child: Image.asset(
+                      'assets/images/icons/tunue_logo.png',
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.access_time,
+                          color: Color(0xFF4CAF50),
+                          size: 40,
+                        );
+                      },
+                    ),
+                  ),
                 ),
+              ),
+              // Timer numerico posizionato alla stessa altezza del badge
+              Positioned(
+                left: 28, // Aggiusto per la barra centrata
+                right: 28, // Aggiusto per la barra centrata
+                top: (iconSize) / 2 +
+                    16, // Sposto più in basso (era +12, ora +16)
+                child: _remainingTime.inSeconds > 0
+                    ? Container(
+                        alignment: _remainingTime.inHours >= 6
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        padding: _remainingTime.inHours >= 6
+                            ? const EdgeInsets.only(right: 4)
+                            : const EdgeInsets.only(left: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.access_time,
+                              size: 14,
+                              color: Color(0xFFACB0B3),
+                            ),
+                            const SizedBox(width: 2),
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFACB0B3),
+                                  fontFamily: 'NeueHaasDisplay',
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: hours.toString().padLeft(2, '0'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'NeueHaasDisplay',
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: 'h ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w300,
+                                      fontFamily: 'NeueHaasDisplay',
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: minutes.toString().padLeft(2, '0'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'NeueHaasDisplay',
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: 'm',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w300,
+                                      fontFamily: 'NeueHaasDisplay',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        // Timer testuale (opzionale, per debug o informazione aggiuntiva)
-        if (_remainingTime.inSeconds > 0)
-          Text(
-            'Prossimo pacchetto gratuito tra: ${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-            style: widget.textStyle ??
-                const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-          )
-        else
-          Text(
-            'Pacchetto gratuito disponibile!',
-            style: widget.textStyle ??
-                const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4CAF50),
-                ),
-          ),
       ],
     );
   }

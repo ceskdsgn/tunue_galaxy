@@ -20,7 +20,7 @@ class AppTheme {
       backgroundColor: primaryColor,
       foregroundColor: Colors.white,
       titleTextStyle: TextStyle(
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -44,20 +44,20 @@ class AppTheme {
     textTheme: const TextTheme(
       bodyLarge: TextStyle(
         color: textLightColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
       ),
       bodyMedium: TextStyle(
         color: textLightColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
       ),
       titleLarge: TextStyle(
         color: textLightColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontWeight: FontWeight.bold,
       ),
       titleMedium: TextStyle(
         color: textLightColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontWeight: FontWeight.bold,
       ),
     ),
@@ -104,7 +104,7 @@ class AppTheme {
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       titleTextStyle: TextStyle(
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -129,20 +129,20 @@ class AppTheme {
     textTheme: const TextTheme(
       bodyLarge: TextStyle(
         color: textDarkColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
       ),
       bodyMedium: TextStyle(
         color: textDarkColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
       ),
       titleLarge: TextStyle(
         color: textDarkColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontWeight: FontWeight.bold,
       ),
       titleMedium: TextStyle(
         color: textDarkColor,
-        fontFamily: 'Montserrat',
+        fontFamily: 'NeueHaasDisplay',
         fontWeight: FontWeight.bold,
       ),
     ),

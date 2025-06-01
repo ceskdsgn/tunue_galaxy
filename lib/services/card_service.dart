@@ -43,8 +43,18 @@ class CardService {
   }
 
   List<CollectionCard> getRandomCards(int count, String packId) {
+    print('DEBUG: getRandomCards chiamata con count=$count, packId=$packId');
     final random = Random();
     final List<CollectionCard> result = [];
+
+    // Verifica che ci siano carte disponibili per questo pacchetto
+    final allCardsInPack = getCardsByPack(packId);
+    print(
+        'DEBUG: Carte totali nel pacchetto $packId: ${allCardsInPack.length}');
+    if (allCardsInPack.isEmpty) {
+      print('DEBUG: Nessuna carta trovata per il pacchetto $packId');
+      return [];
+    }
 
     for (int i = 0; i < count; i++) {
       final rarityRoll = random.nextInt(100) + 1;
@@ -65,11 +75,20 @@ class CardService {
         selectedRarity = CardRarity.gold;
       }
 
+      print('DEBUG: Carta ${i + 1}, rarità selezionata: $selectedRarity');
+
       final List<CollectionCard> cardsOfRarity =
           getCardsByRarityAndPack(selectedRarity, packId);
 
+      print(
+          'DEBUG: Carte disponibili per rarità $selectedRarity: ${cardsOfRarity.length}');
+
+      CollectionCard? selectedCard;
+
       // Se non ci sono carte della rarità selezionata, prova con la rarità più vicina
       if (cardsOfRarity.isEmpty) {
+        print(
+            'DEBUG: Nessuna carta per rarità $selectedRarity, usando fallback');
         final List<CardRarity> fallbackRarities = [
           CardRarity.common,
           CardRarity.rare,
@@ -81,25 +100,23 @@ class CardService {
         // Cerca la rarità più vicina che ha delle carte
         for (final rarity in fallbackRarities) {
           final fallbackCards = getCardsByRarityAndPack(rarity, packId);
+          print(
+              'DEBUG: Fallback rarità $rarity: ${fallbackCards.length} carte');
           if (fallbackCards.isNotEmpty) {
-            final selectedCard =
-                fallbackCards[random.nextInt(fallbackCards.length)];
-            final cardCopy = CollectionCard(
-              id: selectedCard.id,
-              name: selectedCard.name,
-              description: selectedCard.description,
-              rarity: selectedCard.rarity,
-              imageUrl: selectedCard.imageUrl,
-              packId: selectedCard.packId,
-            );
-            result.add(cardCopy);
+            selectedCard = fallbackCards[random.nextInt(fallbackCards.length)];
+            print(
+                'DEBUG: Carta selezionata dal fallback: ${selectedCard.name}');
             break;
           }
         }
       } else {
         // Se ci sono carte della rarità selezionata, scegli una casualmente
-        final selectedCard =
-            cardsOfRarity[random.nextInt(cardsOfRarity.length)];
+        selectedCard = cardsOfRarity[random.nextInt(cardsOfRarity.length)];
+        print('DEBUG: Carta selezionata: ${selectedCard.name}');
+      }
+
+      // Aggiungi la carta solo se ne è stata trovata una
+      if (selectedCard != null) {
         final cardCopy = CollectionCard(
           id: selectedCard.id,
           name: selectedCard.name,
@@ -109,9 +126,30 @@ class CardService {
           packId: selectedCard.packId,
         );
         result.add(cardCopy);
+        print('DEBUG: Carta aggiunta al risultato: ${cardCopy.name}');
+      } else {
+        print(
+            'DEBUG: Nessuna carta trovata per nessuna rarità, using random dalla lista completa');
+        // Se non sono state trovate carte per nessuna rarità,
+        // aggiungi una carta qualsiasi dal pacchetto
+        if (allCardsInPack.isNotEmpty) {
+          final randomCard =
+              allCardsInPack[random.nextInt(allCardsInPack.length)];
+          final cardCopy = CollectionCard(
+            id: randomCard.id,
+            name: randomCard.name,
+            description: randomCard.description,
+            rarity: randomCard.rarity,
+            imageUrl: randomCard.imageUrl,
+            packId: randomCard.packId,
+          );
+          result.add(cardCopy);
+          print('DEBUG: Carta random aggiunta: ${cardCopy.name}');
+        }
       }
     }
 
+    print('DEBUG: getRandomCards restituisce ${result.length} carte');
     return result;
   }
 }

@@ -14,6 +14,7 @@ import 'screens/home_page.dart';
 import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
 import 'utils/theme.dart';
+import 'widgets/custom_nav_icon.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,9 +108,16 @@ class _CollectionAppState extends State<CollectionApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tunuè Collection',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme.copyWith(
+        textTheme: AppTheme.lightTheme.textTheme.apply(
+          fontFamily: 'NeueHaasDisplay',
+        ),
+      ),
+      darkTheme: AppTheme.darkTheme.copyWith(
+        textTheme: AppTheme.darkTheme.textTheme.apply(
+          fontFamily: 'NeueHaasDisplay',
+        ),
+      ),
       themeMode: ThemeMode.light,
       home: !_isInitialized ? const SplashScreen() : const MainScreen(),
       debugShowCheckedModeBanner: false,
@@ -185,43 +193,90 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       body: pages[_selectedIndex],
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Icon(Icons.card_giftcard),
-              label: 'Home',
+      bottomNavigationBar: SafeArea(
+        bottom: false,
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Color.fromARGB(31, 82, 82, 82),
+                  offset: Offset(0, -2),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.collections),
-              label: 'Collezione',
+            padding: const EdgeInsets.only(
+              top: 16,
+              left: 0,
+              right: 0,
+              bottom: 48,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.videogame_asset),
-              label: 'Giochi',
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                GestureDetector(
+                  onTap: () => onItemTapped(0),
+                  child: CustomNavIcon(
+                    iconPath: 'assets/images/icons/png/home.png',
+                    selectedIconPath:
+                        'assets/images/icons/png/home_selected.png',
+                    isSelected: _selectedIndex == 0,
+                    size: 28,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onItemTapped(1),
+                  child: CustomNavIcon(
+                    iconPath: 'assets/images/icons/png/collection.png',
+                    selectedIconPath:
+                        'assets/images/icons/png/collection_selected.png',
+                    isSelected: _selectedIndex == 1,
+                    size: 36,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onItemTapped(2),
+                  child: CustomNavIcon(
+                    iconPath: 'assets/images/icons/png/game.png',
+                    selectedIconPath:
+                        'assets/images/icons/png/game_selected.png',
+                    isSelected: _selectedIndex == 2,
+                    size: 36,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onItemTapped(3),
+                  child: CustomNavIcon(
+                    iconPath: 'assets/images/icons/png/event.png',
+                    selectedIconPath:
+                        'assets/images/icons/png/event_selected.png',
+                    isSelected: _selectedIndex == 3,
+                    size: 36,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onItemTapped(4),
+                  child: CustomNavIcon(
+                    iconPath: 'assets/images/icons/png/profile.png',
+                    selectedIconPath:
+                        'assets/images/icons/png/profile_selected.png',
+                    isSelected: _selectedIndex == 4,
+                    size: 32,
+                  ),
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.event),
-              label: 'Eventi',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profilo',
-            ),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: AppTheme.primaryColor,
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 8,
-          onTap: onItemTapped,
+          ),
         ),
       ),
     );

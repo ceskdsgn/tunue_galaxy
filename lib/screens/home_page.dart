@@ -1,6 +1,11 @@
 // screens/home_page.dart
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
 import '../constants/card_constants.dart';
 import '../models/card.dart';
@@ -11,7 +16,6 @@ import '../services/card_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/card_widget.dart';
 import '../widgets/countdown_timer.dart';
-import '../widgets/pack_widget.dart';
 import 'lucky_wheel_page.dart';
 import 'missions_page.dart';
 
@@ -22,8 +26,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<Pack> packs = [];
   Pack? selectedPack;
   bool isOpeningPack = false;
@@ -31,11 +34,28 @@ class _HomePageState extends State<HomePage>
   late AnimationController _animationController;
   late Animation<double> _animation;
   int currentCardIndex = 0;
+  String selectedDropdownValue = 'Monster Allergy'; // Variabile per il dropdown
+
+  // Controller per il video
+  VideoPlayerController? _videoController;
+
+  // Variabili per il carousel 3D
+  int _centralPackIndex = 0;
+  late AnimationController _carouselController;
+  late Animation<double> _carouselAnimation;
+  final double _carouselOffset = 0.0;
+  final bool _isCarouselDragging = false;
+
+  // Controller per ListWheelScrollView
+  FixedExtentScrollController? _wheelController;
 
   // Controllo swipe
   Offset? _dragStartPosition;
   bool _isDragging = false;
   double _currentCardOffset = 0;
+
+  // Modalità pacchetto ingrandito
+  bool _isPacketEnlarged = false;
 
   @override
   void initState() {
@@ -52,12 +72,39 @@ class _HomePageState extends State<HomePage>
       curve: Curves.easeInOut,
     );
 
+    // Controller per il carousel 3D
+    _carouselController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _carouselAnimation = CurvedAnimation(
+      parent: _carouselController,
+      curve: Curves.easeInOut,
+    );
+
+    // Inizializza il video controller
+    _initializeVideo();
+
     _loadPacks();
+  }
+
+  void _initializeVideo() async {
+    _videoController =
+        VideoPlayerController.asset('assets/videos/background_packs.mp4');
+    await _videoController!.initialize();
+    _videoController!.setLooping(true);
+    _videoController!.setVolume(0.0); // Video senza audio
+    _videoController!.play();
+    setState(() {});
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _videoController?.dispose();
+    _carouselController.dispose();
+    _wheelController?.dispose();
     super.dispose();
   }
 
@@ -70,7 +117,19 @@ class _HomePageState extends State<HomePage>
     }
     setState(() {
       packs = loadedPacks;
-      selectedPack = null;
+      if (loadedPacks.isNotEmpty) {
+        // Calcola l'indice centrale
+        _centralPackIndex = loadedPacks.length ~/ 2;
+        selectedPack = loadedPacks[_centralPackIndex];
+
+        // Crea il controller al centro
+        _wheelController?.dispose(); // Dispose del vecchio se esiste
+        _wheelController =
+            FixedExtentScrollController(initialItem: _centralPackIndex);
+      } else {
+        _centralPackIndex = 0;
+        selectedPack = null;
+      }
     });
   }
 
@@ -82,6 +141,18 @@ class _HomePageState extends State<HomePage>
 
   void _openPack() async {
     if (selectedPack == null) return;
+    print('DEBUG: Inizio apertura pacchetto ${selectedPack!.name}');
+    print('DEBUG: Pack ID: "${selectedPack!.id}"');
+
+    // Controllo aggiuntivo per verificare che l'id non sia null o vuoto
+    if (selectedPack!.id.isEmpty) {
+      print('DEBUG: ERRORE - Pack ID è vuoto!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Errore: Pacchetto non valido')),
+      );
+      return;
+    }
+
     final user = Provider.of<User>(context, listen: false);
     setState(() {
       isOpeningPack = true;
@@ -92,30 +163,50 @@ class _HomePageState extends State<HomePage>
     _animationController.reset();
     _animationController.forward();
     await Future.delayed(const Duration(seconds: 2));
+    print('DEBUG: Caricamento carte...');
     final cardService = CardService();
     await cardService.loadCards();
-    final cards = cardService.getRandomCards(5, selectedPack!.id);
-    if (cards.isEmpty) {
+    print('DEBUG: Carte caricate, generazione carte casuali...');
+    try {
+      final cards = cardService.getRandomCards(5, selectedPack!.id);
+      print('DEBUG: Carte generate: ${cards.length}');
+      for (var card in cards) {
+        print('DEBUG: Carta: ${card.name} - ${card.rarity}');
+      }
+      if (cards.isEmpty) {
+        print('DEBUG: Nessuna carta trovata!');
+        setState(() {
+          isOpeningPack = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Errore nel caricamento delle carte. Riprova più tardi.')),
+        );
+        return;
+      }
+      print('DEBUG: Aggiunta carte all\'utente...');
+      for (var card in cards) {
+        user.addCard(card);
+      }
+      user.updateLastPackOpenTime();
+      print('DEBUG: Sincronizzazione dati...');
+      final authService = AuthService();
+      await authService.syncUserData(user);
+      print('DEBUG: Completato! Showing cards...');
+      setState(() {
+        isOpeningPack = false;
+        drawnCards = cards;
+      });
+    } catch (e) {
+      print('DEBUG: Errore durante getRandomCards: $e');
       setState(() {
         isOpeningPack = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Errore nel caricamento delle carte. Riprova più tardi.')),
+        SnackBar(content: Text('Errore: $e')),
       );
-      return;
     }
-    for (var card in cards) {
-      user.addCard(card);
-    }
-    user.updateLastPackOpenTime();
-    final authService = AuthService();
-    await authService.syncUserData(user);
-    setState(() {
-      isOpeningPack = false;
-      drawnCards = cards;
-    });
   }
 
   void _unlockWithCoins() {
@@ -211,6 +302,59 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  void _goToNextPack() {
+    if (packs.isEmpty) return;
+
+    final nextIndex = (_centralPackIndex + 1) % packs.length;
+    _wheelController?.animateToItem(
+      nextIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToPreviousPack() {
+    if (packs.isEmpty) return;
+
+    final prevIndex = (_centralPackIndex - 1 + packs.length) % packs.length;
+    _wheelController?.animateToItem(
+      prevIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _selectCentralPack() {
+    if (packs.isNotEmpty && _centralPackIndex < packs.length) {
+      setState(() {
+        // Seleziona il pacchetto centrale senza aprire l'overlay
+        selectedPack = packs[_centralPackIndex];
+        // Solo se si vuole aprire l'overlay, impostare _isPacketEnlarged = true
+        // _isPacketEnlarged = true;
+      });
+
+      // Feedback tattile per confermare la selezione
+      // HapticFeedback.mediumImpact(); // Opzionale
+    }
+  }
+
+  void _openEnlargedView() {
+    if (packs.isNotEmpty && _centralPackIndex < packs.length) {
+      setState(() {
+        _isPacketEnlarged = true;
+        selectedPack = packs[_centralPackIndex];
+      });
+    }
+  }
+
+  void _closeEnlargedPack() {
+    setState(() {
+      _isPacketEnlarged = false;
+      // Non resettare selectedPack, mantieni il pacchetto attualmente selezionato
+      // selectedPack = null;
+    });
+  }
+
   String _formatDuration(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = twoDigits(d.inHours);
@@ -235,33 +379,42 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  void _openPackFromOverlay() async {
+    // Chiudi prima l'overlay
+    _closeEnlargedPack();
+    // Poi apri il pacchetto
+    _openPack();
+  }
+
+  void _unlockWithCoinsFromOverlay() async {
+    // Chiudi prima l'overlay
+    _closeEnlargedPack();
+    // Poi sblocca con le coin (che chiamerà automaticamente _openPack)
+    _unlockWithCoins();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<User>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tunuè Collection'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.amber),
-                const SizedBox(width: 4),
-                Text('${user.tunueCoins}',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
+      body: Stack(
+        children: [
+          // Contenuto principale
+          isOpeningPack
+              ? _buildOpeningPackAnimation()
+              : drawnCards != null
+                  ? _buildPackResults()
+                  : _buildPackDisplay(user),
+
+          // Overlay pacchetto ingrandito
+          if (_isPacketEnlarged && selectedPack != null)
+            Material(
+              color: Colors.transparent,
+              elevation: 100,
+              child: _buildEnlargedPackOverlay(),
             ),
-          ),
         ],
-      ),
-      body: Center(
-        child: isOpeningPack
-            ? _buildOpeningPackAnimation()
-            : drawnCards != null
-                ? _buildPackResults()
-                : _buildPackDisplay(user),
       ),
     );
   }
@@ -275,34 +428,9 @@ class _HomePageState extends State<HomePage>
     final coinCost = timeLeft.inHours + 1;
     return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const Text('Scegli un pacchetto da aprire:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          Row(
-            children: packs.map((pack) {
-              final isSelected = selectedPack?.id == pack.id;
-              return Flexible(
-                flex: isSelected ? 4 : 2,
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeInOut,
-                  child: GestureDetector(
-                    onTap: () => _selectPack(pack),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      child: PackWidget(
-                        pack: pack,
-                        showDetails: true,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 58), // Margin top di 58 pixel
           CountdownTimer(
             duration: user.timeUntilNextFreePack(),
             tunueCoins: user.tunueCoins,
@@ -311,84 +439,327 @@ class _HomePageState extends State<HomePage>
             },
             textStyle: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          const SizedBox(height: 16),
-          if (selectedPack != null)
-            AnimatedOpacity(
-              opacity: 1.0,
-              duration: const Duration(milliseconds: 250),
-              child: canOpenFreePack
-                  ? ElevatedButton(
-                      onPressed: _openPack,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16),
-                        textStyle: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      child: const Text('Apri Pacchetto'),
-                    )
-                  : ElevatedButton(
-                      onPressed: _unlockWithCoins,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16),
-                        textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      child: Text('Sblocca con $coinCost Tunuè Coin'),
-                    ),
-            ),
 
-          // Separatore
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Divider(thickness: 1),
+          Transform.translate(
+            offset: const Offset(0, -8),
+            child: IntrinsicHeight(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                child: Stack(
+                  children: [
+                    // Row per le icone laterali (invisibili)
+                    Row(
+                      children: [
+                        // Icona sinistra
+                        Container(
+                          child: Image.asset(
+                            'assets/images/icons/png/vetrina_icon.png',
+                            width: 64,
+                            height: 64,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.filter_list,
+                                color: Colors.blue,
+                                size: 48,
+                              );
+                            },
+                          ),
+                        ),
+                        const Spacer(),
+                        // Icona destra con testo "oggetti"
+                        Transform.translate(
+                          offset: const Offset(12, 0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                child: Image.asset(
+                                  'assets/images/icons/png/oggetti_icon.png',
+                                  width: 64,
+                                  height: 64,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.inventory,
+                                      color: Colors.green,
+                                      size: 24,
+                                    );
+                                  },
+                                ),
+                              ),
+                              Transform.translate(
+                                offset: const Offset(0, -12),
+                                child: const Text(
+                                  'Oggetti',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color.fromARGB(255, 175, 176, 185),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Dropdown centrato rispetto alla pagina
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          // Mostra il menu dropdown personalizzato
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      title: const Text('Monster Allergy'),
+                                      onTap: () {
+                                        setState(() {
+                                          selectedDropdownValue =
+                                              'Monster Allergy';
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    ListTile(
+                                      title: const Text('Avatar Airbender'),
+                                      onTap: () {
+                                        setState(() {
+                                          selectedDropdownValue =
+                                              'Avatar Airbender';
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    ListTile(
+                                      title: const Text('Sonic'),
+                                      onTap: () {
+                                        setState(() {
+                                          selectedDropdownValue = 'Sonic';
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: ShapeDecoration(
+                            gradient: LinearGradient(
+                              begin: const Alignment(0.07, 0.08),
+                              end: const Alignment(0.91, 0.97),
+                              colors: [
+                                Colors.white,
+                                Colors.white.withOpacity(0)
+                              ],
+                            ),
+                            shape: RoundedRectangleBorder(
+                              side: const BorderSide(
+                                width: 1,
+                                strokeAlign: BorderSide.strokeAlignCenter,
+                                color: Color(0xFFDADCE7),
+                              ),
+                              borderRadius: BorderRadius.circular(80),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                selectedDropdownValue,
+                                style: const TextStyle(
+                                  color: Color(0xFF7B7D8A),
+                                  fontSize: 14,
+                                  fontFamily: 'Neue Haas Grotesk Display Pro',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Color(0xFF7B7D8A),
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ListWheelScrollView orizzontale per i pacchetti con video background
+          Container(
+            height: 350, // Aumentato da 280 a 450 per contenere il modello
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: packs.isEmpty || _wheelController == null
+                ? const Center(child: Text('Nessun pacchetto disponibile.'))
+                : Stack(
+                    children: [
+                      // Video di background
+                      if (_videoController != null &&
+                          _videoController!.value.isInitialized)
+                        Positioned.fill(
+                          child: AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: FittedBox(
+                              fit: BoxFit.cover,
+                              child: SizedBox(
+                                width: _videoController!.value.size.width,
+                                height: _videoController!.value.size.height,
+                                child: VideoPlayer(_videoController!),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // ListWheelScrollView sopra il video
+                      Container(
+                        child: RotatedBox(
+                          quarterTurns:
+                              3, // Ruota di 270° per renderlo orizzontale
+                          child: ListWheelScrollView.useDelegate(
+                            controller: _wheelController!,
+                            itemExtent: 200, // Rimesso a 200 come richiesto
+                            perspective:
+                                0.001, // Ridotto da 0.002 per meno inclinazione
+                            diameterRatio:
+                                1.8, // Ridotto da 2.0 a 1.8 per più compattezza
+                            physics: const FixedExtentScrollPhysics(),
+                            onSelectedItemChanged: (index) {
+                              setState(() {
+                                _centralPackIndex = index;
+                                selectedPack = packs[index];
+                              });
+                            },
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              builder: (context, index) {
+                                if (index < 0 || index >= packs.length)
+                                  return null;
+                                return RotatedBox(
+                                  quarterTurns:
+                                      1, // Ruota gli elementi di 90° per compensare
+                                  child: _buildWheelPackItem(
+                                    packs[index],
+                                    index == _centralPackIndex,
+                                  ),
+                                );
+                              },
+                              childCount: packs.length,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
 
           // Sezione per Ruota della Fortuna e Missioni
-          const Text('Altre Attività',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Contenitore per le due sezioni
-          Row(
-            children: [
-              // Ruota della Fortuna
-              Expanded(
-                child: GestureDetector(
-                  onTap: _navigateToLuckyWheel,
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.motion_photos_on,
-                            size: 40,
-                            color: Colors.amber,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                // Ruota della Fortuna
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _navigateToLuckyWheel,
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            offset: const Offset(0, 0),
+                            blurRadius: 16,
+                            spreadRadius: 0,
+                            color: const Color(0xFF666666).withOpacity(0.25),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Ruota della Fortuna',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Parte bianca di base
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(100),
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Gira e vinci!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                          // Parte blu diagonale
+                          ClipPath(
+                            clipper: DiagonalClipper(),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFF7F9CFB).withOpacity(0.16),
+                                    const Color(0xFF0F4CF3).withOpacity(0.16),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                            ),
+                          ),
+                          // Contenuto sopra
+                          Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(0.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/images/icons/png/lucky-wheel_icon.png',
+                                    width: 56,
+                                    height: 56,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.motion_photos_on,
+                                        size: 40,
+                                        color: Colors.amber,
+                                      );
+                                    },
+                                  ),
+                                  const Text(
+                                    'Lucky Wheel',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Gira e vinci!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -396,42 +767,88 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Missioni
-              Expanded(
-                child: GestureDetector(
-                  onTap: _navigateToMissions,
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.task_alt,
-                            size: 40,
-                            color: Colors.green,
+                const SizedBox(width: 8),
+                // Lucky Wheel duplicato
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _navigateToMissions,
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            offset: const Offset(0, 0),
+                            blurRadius: 16,
+                            spreadRadius: 0,
+                            color: const Color(0xFF666666).withOpacity(0.25),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Missioni',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Parte bianca di base
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(100),
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Completa e ottieni ricompense',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                          // Parte blu diagonale
+                          ClipPath(
+                            clipper: DiagonalClipper(),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFFFB7F86).withOpacity(0.16),
+                                    const Color(0xFFF30F39).withOpacity(0.16),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                            ),
+                          ),
+                          // Contenuto sopra
+                          Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(0.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/images/icons/png/missioni_icon.png',
+                                    width: 46,
+                                    height: 46,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.motion_photos_on,
+                                        size: 40,
+                                        color: Colors.amber,
+                                      );
+                                    },
+                                  ),
+                                  const Text(
+                                    'Missioni',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const Text(
+                                    '8/12',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -439,8 +856,8 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -688,4 +1105,328 @@ class _HomePageState extends State<HomePage>
       ],
     );
   }
+
+  Widget _buildEnlargedPackOverlay() {
+    final user = Provider.of<User>(context);
+    final canOpenFreePack = user.canOpenFreePack();
+    final timeLeft = user.timeUntilNextFreePack();
+    final coinCost = timeLeft.inHours + 1;
+
+    return WillPopScope(
+      onWillPop: () async {
+        _closeEnlargedPack();
+        return false; // Previene la chiusura automatica dell'app
+      },
+      child: Stack(
+        children: [
+          // Overlay con sfondo blurrato
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ),
+          ),
+          // GestureDetector per chiudere toccando fuori, ma non interferisce con i bottoni
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _closeEnlargedPack,
+              child: Container(
+                color: Colors.transparent,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 100),
+                    child: GestureDetector(
+                      onTap: () {}, // Blocca il tap sui contenuti interni
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Pacchetto ingrandito
+                          Hero(
+                            tag: 'enlarged_pack_${selectedPack!.id}',
+                            child: Container(
+                              width: 250,
+                              height: 350,
+                              decoration: BoxDecoration(
+                                // Se non ha modello 3D, usa l'immagine
+                                image: selectedPack!.model3D == null
+                                    ? DecorationImage(
+                                        image:
+                                            NetworkImage(selectedPack!.image),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                                color: selectedPack!.model3D != null
+                                    ? Colors.black87
+                                    : null,
+                                borderRadius: BorderRadius.circular(15),
+                                boxShadow: [
+                                  // Prima ombra
+                                  BoxShadow(
+                                    color: const Color(0xFF35ABD7)
+                                        .withOpacity(0.70),
+                                    spreadRadius: 35,
+                                    blurRadius: 94.5,
+                                    offset: const Offset(0, 0),
+                                  ),
+                                  // Seconda ombra (Drop shadow)
+                                  BoxShadow(
+                                    color: const Color(0xFF00ADFF)
+                                        .withOpacity(0.85),
+                                    spreadRadius: 1,
+                                    blurRadius: 73.5,
+                                    offset: const Offset(0, 0),
+                                  ),
+                                ],
+                              ),
+                              child: selectedPack!.model3D != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: ModelViewer(
+                                        backgroundColor:
+                                            const Color(0x00000000),
+                                        src: selectedPack!.model3D!,
+                                        alt: selectedPack!.name,
+                                        ar: false,
+                                        autoRotate: false,
+                                        cameraControls: true,
+                                        disableZoom: true,
+                                        disablePan: true,
+                                        disableTap: true,
+                                        cameraOrbit: '0deg 85deg 85%',
+                                        minCameraOrbit: 'auto 85deg auto',
+                                        maxCameraOrbit: 'auto 85deg auto',
+                                      ),
+                                    )
+                                  : ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: ModelViewer(
+                                        backgroundColor:
+                                            const Color(0x00000000),
+                                        src: 'assets/models/pack.glb',
+                                        alt: selectedPack!.name,
+                                        ar: false,
+                                        autoRotate: false,
+                                        cameraControls: true,
+                                        disableZoom: true,
+                                        disablePan: true,
+                                        disableTap: true,
+                                        interactionPrompt:
+                                            InteractionPrompt.none,
+                                        cameraOrbit: '0deg 85deg 85%',
+                                        minCameraOrbit: 'auto 85deg auto',
+                                        maxCameraOrbit: 'auto 85deg auto',
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          Text(
+                            selectedPack!.name,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 30),
+                          // Bottone di azione
+                          canOpenFreePack
+                              ? ElevatedButton(
+                                  onPressed: () {
+                                    _openPackFromOverlay();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 32, vertical: 16),
+                                    textStyle: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  child: const Text('Apri Pacchetto'),
+                                )
+                              : Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        _unlockWithCoinsFromOverlay();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 32, vertical: 16),
+                                        decoration: ShapeDecoration(
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              Color(0xFF13C931),
+                                              Color(0xFF3CCC7E),
+                                            ],
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(80),
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Sblocca pacchetto',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontFamily:
+                                                    'Neue Haas Grotesk Display Pro',
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Badge con numero di coin
+                                    Positioned(
+                                      top: -8,
+                                      right: -8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFACB0B3),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Image.asset(
+                                              'assets/images/icons/tunue_logo.png',
+                                              width: 32,
+                                              height: 32,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '$coinCost',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWheelPackItem(Pack pack, bool isSelected) {
+    // Debug per vedere se il modello 3D è presente
+    print('DEBUG: Pack ${pack.name} - model3D: ${pack.model3D}');
+
+    return GestureDetector(
+      onTap: () {
+        if (isSelected) {
+          // Se è selezionato, apri l'overlay
+          _openEnlargedView();
+        } else {
+          // Se non è selezionato, naviga verso di esso
+          final index = packs.indexOf(pack);
+          _wheelController?.animateToItem(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      },
+      child: Stack(
+        children: [
+          // Solo il modello 3D puro senza alcun container
+          const Center(
+            child: SizedBox(
+              width: 280, // Larghezza piena per il viewport
+              height:
+                  420, // Aumentato ancora per eliminare completamente i tagli inferiori
+              child: ModelViewer(
+                backgroundColor: Color(0x00000000),
+                src: 'assets/models/pack.glb',
+                alt: 'Pack 3D Model',
+                ar: false,
+                autoRotate: false, // Rimossa la rotazione automatica
+                cameraControls: true, // Riabilita i controlli
+                disableZoom: true,
+                interactionPrompt: InteractionPrompt.none, // Elimina la manina
+                cameraOrbit:
+                    '0deg 85deg 85%', // Ruotato leggermente verso l'alto (da 75deg a 85deg)
+                minCameraOrbit:
+                    'auto 85deg auto', // Aggiornato anche qui per coerenza
+                maxCameraOrbit:
+                    'auto 85deg auto', // Aggiornato anche qui per coerenza
+              ),
+            ),
+          ),
+          // Nome fluttuante sotto il modello
+          if (isSelected)
+            Positioned(
+              bottom: -20,
+              left: 0,
+              right: 0,
+              child: Text(
+                pack.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black,
+                      offset: Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class DiagonalClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    // Crea una forma diagonale spostata più in basso
+    path.moveTo(2, size.height * 0);
+    path.lineTo(size.width * 2, 0);
+    path.lineTo(0, size.height * 0.6);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

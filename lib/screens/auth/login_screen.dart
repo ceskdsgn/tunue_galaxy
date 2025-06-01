@@ -1,12 +1,12 @@
 // screens/auth/login_screen.dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'dart:ui';
 
-import '../../models/user.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../services/auth_service.dart';
-import '../../utils/theme.dart';
+import 'email_login_screen.dart';
 import 'register_screen.dart';
-import 'reset_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,234 +16,245 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
   final AuthService _authService = AuthService();
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _togglePasswordVisibility() {
-    setState(() {
-      _obscurePassword = !_obscurePassword;
-    });
-  }
-
-  Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      await _authService.signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        onSuccess: (user) {
-          // Aggiorna il modello utente usando Provider
-          final userModel = Provider.of<User>(context, listen: false);
-          userModel.update(
-            id: user.id,
-            username: user.username,
-            email: _emailController.text.trim(),
-            tunueCoins: user.tunueCoins,
-            ownedCards: user.ownedCards,
-            lastPackOpenTime: user.lastPackOpenTime,
-            isAuthenticated: true,
-          );
-
-          setState(() {
-            _isLoading = false;
-          });
-
-          // Naviga alla schermata principale
-          Navigator.of(context)
-              .pop(true); // Ritorna true per indicare login avvenuto
-        },
-        onError: (error) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
-        },
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accedi'),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/logos/background_login-page.jpg'),
+            fit: BoxFit.fitWidth,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo o immagine dell'app
-                const SizedBox(
-                  height: 150,
-                  child: Center(
-                    child: Icon(
-                      Icons.card_giftcard,
-                      size: 80,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
+                // Spazio flessibile superiore
+                const Spacer(flex: 2),
 
-                // Titolo
-                const Text(
-                  'Bentornato!',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Accedi per continuare la tua collezione',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
+                // Spazio flessibile inferiore (più grande)
+                const Spacer(flex: 3),
 
-                // Campo email
-                TextFormField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Inserisci la tua email',
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Inserisci la tua email';
-                    }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
-                      return 'Inserisci un indirizzo email valido';
-                    }
-                    return null;
+                // Pulsanti social login
+                _buildSocialButton(
+                  icon: Icons.apple,
+                  text: 'Continua con Apple',
+                  onPressed: () {
+                    // TODO: Implementare Apple Sign In
                   },
+                  iconColor: Colors.white,
+                  iconSize: 28,
                 ),
                 const SizedBox(height: 16),
 
-                // Campo password
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Inserisci la tua password',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: _togglePasswordVisibility,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  obscureText: _obscurePassword,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Inserisci la tua password';
-                    }
-                    return null;
+                _buildSocialButton(
+                  icon: Icons.g_translate,
+                  text: 'Continua con Google',
+                  onPressed: () {
+                    // TODO: Implementare Google Sign In
                   },
+                  isGoogleIcon: true,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                // Link password dimenticata
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ResetPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('Password dimenticata?'),
-                  ),
+                _buildSocialButton(
+                  icon: Icons.facebook,
+                  text: 'Continua con Facebook',
+                  onPressed: () {
+                    // TODO: Implementare Facebook Sign In
+                  },
+                  iconColor: Colors.blue,
+                  iconSize: 28,
                 ),
-                const SizedBox(height: 24),
 
-                // Pulsante login
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'ACCEDI',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // Link per la registrazione
+                // Separatore "oppure" con linee
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Non hai un account?'),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Registrati'),
+                    Expanded(
+                      child: Container(
+                        height: 0.5,
+                        color: const Color(0xFF494B51),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'oppure',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontFamily: 'NeueHaasDisplay',
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        height: 0.5,
+                        color: const Color(0xFF494B51),
+                      ),
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Pulsante "Crea un account"
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 78, vertical: 16),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: ShapeDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF13C931),
+                          Color(0xFF3CCC7E),
+                        ],
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(80),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Crea un account',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'NeueHaasDisplay',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Link per accedere
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Hai già un account? ',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontFamily: 'NeueHaasDisplay',
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EmailLoginScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Accedi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'NeueHaasDisplay',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialButton({
+    required IconData icon,
+    required String text,
+    required VoidCallback onPressed,
+    Color? iconColor,
+    bool isGoogleIcon = false,
+    double? iconSize,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+            child: InkWell(
+              onTap: onPressed,
+              splashColor: Colors.white.withOpacity(0.1),
+              highlightColor: Colors.white.withOpacity(0.05),
+              splashFactory: InkRipple.splashFactory,
+              borderRadius: BorderRadius.circular(50),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  border: Border.all(color: const Color(0xFF1B1C1E), width: 1),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isGoogleIcon)
+                      SvgPicture.asset(
+                        'assets/images/icons/svg/Google_Favicon_2025.svg',
+                        height: iconSize ?? 24,
+                      ),
+                    if (!isGoogleIcon)
+                      Icon(
+                        icon,
+                        color: iconColor ?? Colors.black,
+                        size: iconSize ?? 24,
+                      ),
+                    const SizedBox(width: 12),
+                    Text(
+                      text,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'NeueHaasDisplay',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
