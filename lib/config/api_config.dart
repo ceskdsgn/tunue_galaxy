@@ -1,7 +1,7 @@
 class ApiConfig {
   // IMPORTANTE: Sostituire con la propria chiave API OpenAI
   // Per sicurezza, in produzione usare variabili d'ambiente
-  static const String openAIApiKey = '';
+  static const String openAIApiKey = 'ciao';
 
   // URL base per le API OpenAI
   static const String openAIBaseUrl =
