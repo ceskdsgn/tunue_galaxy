@@ -119,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 78, vertical: 16),
+                        horizontal: 78, vertical: 12),
                     clipBehavior: Clip.antiAlias,
                     decoration: ShapeDecoration(
                       gradient: const LinearGradient(
@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 16,
                             fontFamily: 'NeueHaasDisplay',
                             fontWeight: FontWeight.w600,
                           ),
@@ -222,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
               splashFactory: InkRipple.splashFactory,
               borderRadius: BorderRadius.circular(50),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.2),
                   border: Border.all(color: const Color(0xFF1B1C1E), width: 1),
@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (isGoogleIcon)
                       SvgPicture.asset(
                         'assets/images/icons/svg/Google_Favicon_2025.svg',
-                        height: iconSize ?? 24,
+                        height: iconSize ?? 22,
                       ),
                     if (!isGoogleIcon)
                       Icon(

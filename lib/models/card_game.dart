@@ -118,6 +118,37 @@ class Player {
     }
   }
 
+  // Metodi per inserire carte in posizioni specifiche
+  void addPersonaggioToSpecificPosition(PersonaggioCard card, int targetIndex) {
+    if (targetIndex >= 0 && targetIndex < zonePersonaggi.length) {
+      if (zonePersonaggi[targetIndex] == null) {
+        // La posizione target è libera, inserisci direttamente
+        zonePersonaggi[targetIndex] = card;
+      } else {
+        // La posizione target è occupata, trova la prima posizione libera
+        addPersonaggioToField(card);
+      }
+    } else {
+      // Indice non valido, usa il metodo standard
+      addPersonaggioToField(card);
+    }
+  }
+
+  void addInterazioneToSpecificPosition(InterazioneCard card, int targetIndex) {
+    if (targetIndex >= 0 && targetIndex < zoneInterazioni.length) {
+      if (zoneInterazioni[targetIndex] == null) {
+        // La posizione target è libera, inserisci direttamente
+        zoneInterazioni[targetIndex] = card;
+      } else {
+        // La posizione target è occupata, trova la prima posizione libera
+        addInterazioneToField(card);
+      }
+    } else {
+      // Indice non valido, usa il metodo standard
+      addInterazioneToField(card);
+    }
+  }
+
   void removePersonaggioFromField(int index) {
     if (index >= 0 && index < zonePersonaggi.length) {
       final card = zonePersonaggi[index];

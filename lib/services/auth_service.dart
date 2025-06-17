@@ -75,7 +75,16 @@ class AuthService {
 
       onSuccess(user);
     } catch (e) {
-      onError(e.toString());
+      // Gestione errore email già registrata
+      final errorMsg = e.toString().toLowerCase();
+      if (errorMsg.contains('already registered') ||
+          errorMsg.contains('user already exists') ||
+          (errorMsg.contains('email') && errorMsg.contains('exists'))) {
+        onError(
+            'Questa email è già registrata. Prova ad accedere o usa un\'altra email.');
+      } else {
+        onError(e.toString());
+      }
     }
   }
 

@@ -1,12 +1,12 @@
 class CardConstants {
   // Dimensioni standard della carta
-  static const double cardWidth = 45.0;
-  static const double cardHeight = 67.0;
+  static const double cardWidth = 63.0;
+  static const double cardHeight = 88.0;
   static const double cardAspectRatio = cardWidth / cardHeight;
 
   // Dimensioni della carta nella homepage (più grande)
-  static const double homeCardWidth = 200.0;
-  static const double homeCardHeight = 280.0;
+  static const double homeCardWidth = 302.0; // 252 * 1.2
+  static const double homeCardHeight = 422.0; // 352 * 1.2
   static const double homeCardAspectRatio = homeCardWidth / homeCardHeight;
 
   // Dimensioni della carta nel dialogo dei dettagli
@@ -22,5 +22,5 @@ class CardConstants {
 
   // Padding e margini
   static const double cardPadding = 4.0;
-  static const double cardBorderRadius = 15.0;
+  static const double cardBorderRadius = 8.0;
 }

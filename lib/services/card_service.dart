@@ -121,8 +121,11 @@ class CardService {
           id: selectedCard.id,
           name: selectedCard.name,
           description: selectedCard.description,
+          effect: selectedCard.effect,
+          story: selectedCard.story,
           rarity: selectedCard.rarity,
           imageUrl: selectedCard.imageUrl,
+          link: selectedCard.link,
           packId: selectedCard.packId,
         );
         result.add(cardCopy);
@@ -139,8 +142,11 @@ class CardService {
             id: randomCard.id,
             name: randomCard.name,
             description: randomCard.description,
+            effect: randomCard.effect,
+            story: randomCard.story,
             rarity: randomCard.rarity,
             imageUrl: randomCard.imageUrl,
+            link: randomCard.link,
             packId: randomCard.packId,
           );
           result.add(cardCopy);
@@ -151,5 +157,74 @@ class CardService {
 
     print('DEBUG: getRandomCards restituisce ${result.length} carte');
     return result;
+  }
+
+  List<CollectionCard> drawRandomCards(int count, String packId) {
+    final packCards = getCardsByPack(packId);
+    if (packCards.isEmpty) return [];
+
+    final random = Random();
+    final drawnCards = <CollectionCard>[];
+
+    for (var i = 0; i < count; i++) {
+      if (packCards.isEmpty) break;
+
+      final randomIndex = random.nextInt(packCards.length);
+      final card = packCards[randomIndex];
+
+      // Crea una copia della carta con i nuovi campi
+      final cardCopy = CollectionCard(
+        id: card.id,
+        name: card.name,
+        description: card.description,
+        effect: card.effect,
+        story: card.story,
+        rarity: card.rarity,
+        imageUrl: card.imageUrl,
+        link: card.link,
+        isOwned: true,
+        quantity: 1,
+        packId: card.packId,
+      );
+
+      drawnCards.add(cardCopy);
+    }
+
+    return drawnCards;
+  }
+
+  List<CollectionCard> drawRandomCardsByRarity(
+      int count, String packId, CardRarity rarity) {
+    final packCards = getCardsByRarityAndPack(rarity, packId);
+    if (packCards.isEmpty) return [];
+
+    final random = Random();
+    final drawnCards = <CollectionCard>[];
+
+    for (var i = 0; i < count; i++) {
+      if (packCards.isEmpty) break;
+
+      final randomIndex = random.nextInt(packCards.length);
+      final card = packCards[randomIndex];
+
+      // Crea una copia della carta con i nuovi campi
+      final cardCopy = CollectionCard(
+        id: card.id,
+        name: card.name,
+        description: card.description,
+        effect: card.effect,
+        story: card.story,
+        rarity: card.rarity,
+        imageUrl: card.imageUrl,
+        link: card.link,
+        isOwned: true,
+        quantity: 1,
+        packId: card.packId,
+      );
+
+      drawnCards.add(cardCopy);
+    }
+
+    return drawnCards;
   }
 }

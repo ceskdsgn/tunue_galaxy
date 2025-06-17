@@ -490,7 +490,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 child: Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 78, vertical: 16),
+                      const EdgeInsets.symmetric(horizontal: 78, vertical: 12),
                   clipBehavior: Clip.antiAlias,
                   decoration: ShapeDecoration(
                     gradient: const LinearGradient(
@@ -531,7 +531,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontFamily: 'NeueHaasDisplay',
                                 fontWeight: FontWeight.w600,
                               ),

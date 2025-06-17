@@ -141,8 +141,8 @@ class _CountdownTimerState extends State<CountdownTimer> {
                 left: iconPosition +
                     8 +
                     (iconSize / 2) -
-                    20, // Aggiusto per seguire il logo
-                top: (iconSize) / 2 + 10, // Più in basso
+                    21, // Aggiusto per seguire il logo
+                top: (iconSize) / 2 + 10.5, // Più in basso
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

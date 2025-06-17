@@ -2,6 +2,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 import '../constants/card_constants.dart';
 import '../models/card.dart';
@@ -12,6 +13,10 @@ class CardWidget extends StatelessWidget {
   final VoidCallback? onTap;
   final bool greyOut;
   final bool isHomePage;
+  final bool isCompactMode;
+  final bool isCollection;
+  final VideoPlayerController? videoController;
+  final bool shouldPlayVideo;
 
   const CardWidget({
     super.key,
@@ -20,6 +25,10 @@ class CardWidget extends StatelessWidget {
     this.onTap,
     this.greyOut = false,
     this.isHomePage = false,
+    this.isCompactMode = false,
+    this.isCollection = false,
+    this.videoController,
+    this.shouldPlayVideo = false,
   });
 
   @override
@@ -38,16 +47,10 @@ class CardWidget extends StatelessWidget {
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(CardConstants.cardBorderRadius),
-            side: BorderSide(
-              color: greyOut
-                  ? Colors.grey
-                  : CollectionCard.getRarityColor(card.rarity),
-              width: 2,
-            ),
           ),
           child: Stack(
             children: [
-              // Immagine della carta che riempie tutto lo spazio
+              // Immagine della carta o video che riempie tutto lo spazio
               ClipRRect(
                 borderRadius:
                     BorderRadius.circular(CardConstants.cardBorderRadius),
@@ -64,23 +67,7 @@ class CardWidget extends StatelessWidget {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                Image.network(
-                                  card.imageUrl,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    color: Colors.grey[300],
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.broken_image,
-                                        size: 32,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                _buildMediaContent(),
                                 const Icon(
                                   Icons.lock,
                                   size: 32,
@@ -90,125 +77,68 @@ class CardWidget extends StatelessWidget {
                             ),
                           ),
                         )
-                      : Image.network(
-                          card.imageUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                            color: Colors.grey[300],
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.broken_image,
-                                    size: 32,
-                                    color: Colors.grey,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Errore nel caricamento dell\'immagine',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                      : _buildMediaContent(),
+                ),
+              ),
+              // Overlay con quantità (solo se maggiore di 1 e solo in collection)
+              if (!greyOut &&
+                  card.quantity > 1 &&
+                  !isCompactMode &&
+                  isCollection)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(8),
+                      bottomLeft: Radius.circular(8),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
+                      child: Container(
+                        width: 32,
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: ShapeDecoration(
+                          gradient: LinearGradient(
+                            begin: const Alignment(-0.00, 0.00),
+                            end: const Alignment(1.00, 1.01),
+                            colors: [
+                              Colors.white.withOpacity(0.7),
+                              Colors.white.withOpacity(0.4),
+                              Colors.white.withOpacity(0)
+                            ],
+                          ),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(8),
+                              bottomLeft: Radius.circular(8),
+                            ),
+                          ),
+                          shadows: const [
+                            BoxShadow(
+                              color: Color(0x28000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 0),
+                              spreadRadius: 0,
+                            )
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${card.quantity}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 12,
+                              fontFamily: 'NeueHaasDisplay',
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                ),
-              ),
-              // Overlay con nome e rarità
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.8),
-                        Colors.transparent,
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft:
-                          Radius.circular(CardConstants.cardBorderRadius),
-                      bottomRight:
-                          Radius.circular(CardConstants.cardBorderRadius),
+                      ),
                     ),
                   ),
-                  padding: const EdgeInsets.all(CardConstants.cardPadding),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Nome della carta
-                      Text(
-                        card.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: CardConstants.cardNameFontSize,
-                          color: greyOut ? Colors.grey : Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      // Etichetta rarità
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 1, horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: greyOut
-                              ? Colors.grey
-                              : CollectionCard.getRarityColor(card.rarity),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              CollectionCard.getRarityString(card.rarity),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: CardConstants.cardRarityFontSize),
-                              textAlign: TextAlign.center,
-                            ),
-                            if (!greyOut && card.quantity > 1) ...[
-                              const SizedBox(width: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 2, vertical: 0),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                                child: Text(
-                                  'x${card.quantity}',
-                                  style: TextStyle(
-                                    color: CollectionCard.getRarityColor(
-                                        card.rarity),
-                                    fontSize:
-                                        CardConstants.cardQuantityFontSize,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
               // Overlay grigio se la carta non è posseduta
               if (greyOut)
                 Positioned.fill(
@@ -223,6 +153,40 @@ class CardWidget extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMediaContent() {
+    // Se c'è un video controller e dovrebbe riprodurre il video, mostra il video
+    if (videoController != null &&
+        shouldPlayVideo &&
+        videoController!.value.isInitialized) {
+      return SizedBox(
+        width: double.infinity,
+        height: double.infinity,
+        child: OverflowBox(
+          alignment: Alignment.center,
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: videoController!.value.size.width,
+              height: videoController!.value.size.height,
+              child: VideoPlayer(videoController!),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Altrimenti mostra l'immagine normale
+    return Image.network(
+      card.imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: Colors.grey[300],
       ),
     );
   }

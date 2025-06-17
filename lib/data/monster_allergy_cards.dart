@@ -19,7 +19,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Quando entra in campo, guarda la carta in cima al mazzo dell\'avversario.',
-        imageUrl: 'assets/images/cards/zick.jpg',
+        imageUrl: 'assets/images/game/cards/zick.png',
         effetto:
             'Quando entra in campo, guarda la carta in cima al mazzo dell\'avversario.',
       ),
@@ -31,7 +31,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Se controlli "Zick", ottiene +1 Forza e non subisce gli effetti delle Carte dell\'avversario.',
-        imageUrl: 'assets/images/cards/elena.jpg',
+        imageUrl: 'assets/images/game/cards/elena.png',
         effetto:
             'Se controlli "Zick", ottiene +1 Forza e non subisce gli effetti delle Carte dell\'avversario.',
       ),
@@ -42,7 +42,7 @@ class MonsterAllergyCards {
         forza: 2,
         series: CardSeries.monsterAllergy,
         description: 'Quando entra in campo, guarda la mano dell\'avversario.',
-        imageUrl: 'assets/images/cards/timothy.jpg',
+        imageUrl: 'assets/images/game/cards/timothy-moth.png',
         effetto: 'Quando entra in campo, guarda la mano dell\'avversario.',
       ),
       PersonaggioCard(
@@ -53,7 +53,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Quando entra in campo, pesca 1 carta dal tuo mazzo o dal mazzo dell\'avversario.',
-        imageUrl: 'assets/images/cards/bombo.jpg',
+        imageUrl: 'assets/images/game/cards/bombo.png',
         effetto:
             'Quando entra in campo, pesca 1 carta dal tuo mazzo o dal mazzo dell\'avversario.',
       ),
@@ -65,7 +65,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Quando entra in campo, distruggi/aggiungi alla tua mano/prendi il controllo di 1 Carta dell\'avversario.',
-        imageUrl: 'assets/images/cards/magnacat.jpg',
+        imageUrl: 'assets/images/game/cards/magnacat.png',
         effetto:
             'Quando entra in campo, distruggi/aggiungi alla tua mano/prendi il controllo di 1 Carta dell\'avversario.',
       ),
@@ -81,7 +81,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Le Carte Personaggio di "Monster Allergy" costano 1 Energia in meno per essere giocate.',
-        imageUrl: 'assets/images/cards/casa_zick.jpg',
+        imageUrl: 'assets/images/game/cards/casa-zick.png',
         effetto:
             'Le Carte Personaggio di "Monster Allergy" costano 1 Energia in meno per essere giocate.',
       ),
@@ -92,7 +92,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Le Carte Personaggio di "Monster Allergy" guadagnano +1 Forza.',
-        imageUrl: 'assets/images/cards/citta_mostri.jpg',
+        imageUrl: 'assets/images/game/cards/citta-mostri.png',
         effetto:
             'Le Carte Personaggio di "Monster Allergy" guadagnano +1 Forza.',
       ),
@@ -108,7 +108,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Aggiungi 1 Carta Personaggio "Zick" o "Elena" dal tuo mazzo o cimitero alla tua mano.',
-        imageUrl: 'assets/images/cards/caccia_mostri.jpg',
+        imageUrl: 'assets/images/game/cards/caccia-di-mostri.png',
         effetto:
             'Aggiungi 1 Carta Personaggio "Zick" o "Elena" dal tuo mazzo o cimitero alla tua mano.',
       ),
@@ -119,7 +119,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Puoi giocare questa carta soltanto se in campo è presente 1 Carta Ambientazione; distruggila. Puoi aggiungere 1 Carta Ambientazione dal tuo mazzo alla mano.',
-        imageUrl: 'assets/images/cards/lotta_marina.jpg',
+        imageUrl: 'assets/images/game/cards/lotta-marina.png',
         effetto:
             'Puoi giocare questa carta soltanto se in campo è presente 1 Carta Ambientazione; distruggila. Puoi aggiungere 1 Carta Ambientazione dal tuo mazzo alla mano.',
       ),
@@ -130,7 +130,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Puoi giocare questa carta soltanto se controlli 1 Carta Personaggio "Zick" o "Elena". Gioca (direttamente dal tuo mazzo, senza pagarne il costo) 1 Carta Personaggio "Zick" o "Elena".',
-        imageUrl: 'assets/images/cards/lavoro_squadra.jpg',
+        imageUrl: 'assets/images/game/cards/lavoro-di-squadra.png',
         effetto:
             'Puoi giocare questa carta soltanto se controlli 1 Carta Personaggio "Zick" o "Elena". Gioca (direttamente dal tuo mazzo, senza pagarne il costo) 1 Carta Personaggio "Zick" o "Elena".',
       ),
@@ -141,7 +141,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Guarda la mano del tuo avversario. Scegli ed aggiungi 1 Carta dalla mano del tuo avversario alla tua mano.',
-        imageUrl: 'assets/images/cards/fame_carnivora.jpg',
+        imageUrl: 'assets/images/game/cards/fame-carnivora.png',
         effetto:
             'Guarda la mano del tuo avversario. Scegli ed aggiungi 1 Carta dalla mano del tuo avversario alla tua mano.',
       ),
@@ -152,7 +152,7 @@ class MonsterAllergyCards {
         series: CardSeries.monsterAllergy,
         description:
             'Mischia nel mazzo 2 Carte Personaggio dalla tua mano. Rivela ed aggiungi fino a 2 Carte Personaggio dal tuo mazzo alla mano.',
-        imageUrl: 'assets/images/cards/mare_guai.jpg',
+        imageUrl: 'assets/images/game/cards/mare-di-guai.png',
         effetto:
             'Mischia nel mazzo 2 Carte Personaggio dalla tua mano. Rivela ed aggiungi fino a 2 Carte Personaggio dal tuo mazzo alla mano.',
       ),
@@ -162,7 +162,7 @@ class MonsterAllergyCards {
         cost: 0,
         series: CardSeries.monsterAllergy,
         description: 'Fai tornare 1 dei tuoi Personaggi nella tua mano.',
-        imageUrl: 'assets/images/cards/ritirata.jpg',
+        imageUrl: 'assets/images/game/cards/ritirata.png',
         effetto: 'Fai tornare 1 dei tuoi Personaggi nella tua mano.',
       ),
     ];

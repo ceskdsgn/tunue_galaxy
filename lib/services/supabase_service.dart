@@ -38,8 +38,11 @@ class SupabaseService {
               id: cardData['id'],
               name: cardData['name'],
               description: cardData['description'],
+              effect: cardData['effect'] ?? '',
+              story: cardData['story'] ?? '',
               rarity: _mapRarityFromString(cardData['rarity_id']),
               imageUrl: cardData['image'],
+              link: cardData['link'] ?? '',
               packId: cardData['pack_id'],
             );
           })

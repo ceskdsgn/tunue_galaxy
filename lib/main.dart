@@ -1,4 +1,5 @@
 // main.dart
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -7,12 +8,14 @@ import 'constants/supabase_config.dart';
 import 'models/card.dart';
 import 'models/user.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/no_connection_screen.dart';
 import 'screens/collection_page.dart';
 import 'screens/fair_page.dart';
 import 'screens/game_page.dart';
 import 'screens/home_page.dart';
 import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
+import 'services/card_service.dart';
 import 'utils/theme.dart';
 import 'widgets/custom_nav_icon.dart';
 
@@ -25,71 +28,104 @@ void main() async {
   );
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => User(username: ''),
-      child: const CollectionApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => User(username: ''),
+        ),
+        Provider<CardService>(
+          create: (_) => CardService(),
+        ),
+      ],
+      child: const MyApp(),
     ),
   );
 }
 
-class CollectionApp extends StatefulWidget {
-  const CollectionApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
   @override
-  _CollectionAppState createState() => _CollectionAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
-class _CollectionAppState extends State<CollectionApp> {
-  final AuthService _authService = AuthService();
+class _MyAppState extends State<MyApp> {
   bool _isInitialized = false;
+  bool _hasInternetConnection = true;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _checkAuthState();
+    _checkConnection();
+    _initializeApp();
   }
 
-  Future<void> _checkAuthState() async {
-    // Ascolta i cambiamenti di autenticazione
-    _authService.authStateChanges.listen((AuthState authState) async {
-      final currentUser = authState.session?.user;
-      final userModel = Provider.of<User>(context, listen: false);
+  Future<void> _checkConnection() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    setState(() {
+      _hasInternetConnection = connectivityResult != ConnectivityResult.none;
+    });
 
-      if (currentUser != null) {
+    // Ascolta i cambiamenti della connessione
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      setState(() {
+        _hasInternetConnection = result != ConnectivityResult.none;
+      });
+    });
+  }
+
+  Future<void> _initializeApp() async {
+    final userModel = Provider.of<User>(context, listen: false);
+
+    _authService.authStateChanges.listen((event) async {
+      final user = event.session?.user;
+      if (user != null) {
         try {
-          // Ottieni i dati dell'utente dal database
-          final userData = await Supabase.instance.client
+          // Recupera i dati del profilo
+          final profile = await Supabase.instance.client
               .from('profiles')
               .select()
-              .eq('id', currentUser.id)
+              .eq('id', user.id)
               .single();
 
-          // Converti i dati delle carte possedute da JSON a oggetti
+          // Converti le carte possedute da JSON a oggetti
           List<CollectionCard> ownedCards = [];
-          if (userData['owned_cards'] != null &&
-              userData['owned_cards'] is List) {
-            for (var cardData in userData['owned_cards']) {
+          if (profile['owned_cards'] != null &&
+              profile['owned_cards'] is List) {
+            for (var cardData in profile['owned_cards']) {
               ownedCards.add(CollectionCard.fromJson(cardData));
             }
           }
 
-          // Aggiorna il modello utente
+          // Aggiorna i dati utente se autenticato
           userModel.update(
-            id: currentUser.id,
-            username: userData['username'] ?? 'Ospite',
-            email: currentUser.email,
-            tunueCoins: userData['tunue_coins'],
+            id: user.id,
+            username: user.userMetadata?['username'] ?? 'Collezionista',
+            email: user.email,
+            tunueCoins: profile['tunue_coins'] ?? 100,
             ownedCards: ownedCards,
-            lastPackOpenTime: DateTime.parse(userData['last_pack_open_time']),
-            nextPackTime: DateTime.parse(userData['next_pack_time']),
+            lastPackOpenTime: DateTime.parse(profile['last_pack_open_time'] ??
+                DateTime.now().toUtc().toIso8601String()),
+            nextPackTime: DateTime.parse(profile['next_pack_time'] ??
+                DateTime.now()
+                    .toUtc()
+                    .add(const Duration(hours: 12))
+                    .toIso8601String()),
             isAuthenticated: true,
           );
         } catch (e) {
-          debugPrint('Errore nel recupero dei dati utente: $e');
-          // In caso di errore, impostiamo almeno un username di default
+          print('Errore nel caricamento del profilo: $e');
+          // In caso di errore, usa i valori di default
           userModel.update(
-            username: 'Ospite',
-            isAuthenticated: false,
+            id: user.id,
+            username: user.userMetadata?['username'] ?? 'Collezionista',
+            email: user.email,
+            tunueCoins: 100,
+            ownedCards: [],
+            lastPackOpenTime: DateTime.now().toUtc(),
+            nextPackTime: DateTime.now().toUtc().add(const Duration(hours: 12)),
+            isAuthenticated: true,
           );
         }
       } else {
@@ -119,7 +155,11 @@ class _CollectionAppState extends State<CollectionApp> {
         ),
       ),
       themeMode: ThemeMode.light,
-      home: !_isInitialized ? const SplashScreen() : const MainScreen(),
+      home: !_isInitialized
+          ? const SplashScreen()
+          : !_hasInternetConnection
+              ? const NoConnectionScreen()
+              : const MainScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -130,30 +170,9 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo o icona dell'app
-            Icon(
-              Icons.card_giftcard,
-              size: 80,
-              color: AppTheme.primaryColor,
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Tunuè Collection',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 24),
-            CircularProgressIndicator(),
-          ],
-        ),
-      ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(),
     );
   }
 }

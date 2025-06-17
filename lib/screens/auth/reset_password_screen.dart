@@ -264,7 +264,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           onTap: _isLoading ? null : _resetPassword,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 78, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 78, vertical: 12),
             clipBehavior: Clip.antiAlias,
             decoration: ShapeDecoration(
               gradient: const LinearGradient(
@@ -305,7 +305,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 16,
                           fontFamily: 'NeueHaasDisplay',
                           fontWeight: FontWeight.w600,
                         ),

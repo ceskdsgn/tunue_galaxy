@@ -23,6 +23,12 @@ class CardGameService {
   // Callback per le azioni dell'AI
   Function(String)? onAIAction;
 
+  // Callback per le azioni del giocatore umano
+  Function(String)? onPlayerAction;
+
+  // Callback per quando viene pescata una carta
+  Function(GameCard, bool)? onCardDrawn;
+
   GameState? get gameState => _gameState;
   GamePhase get currentPhase => _currentPhase;
   bool get isAIGame => _isAIGame;
@@ -36,7 +42,7 @@ class CardGameService {
   void iniziaPartitaVsAI(Player giocatoreUmano) {
     // Crea il giocatore AI
     final aiPlayer = Player(
-      name: 'AI Tunué',
+      name: 'Bombo',
       mazzo: List.from(MonsterAllergyCards.createDefaultDeck()),
     );
 
@@ -76,7 +82,7 @@ class CardGameService {
 
     // Se è una partita AI e il primo giocatore è l'AI, inizia automaticamente
     if (_isAIGame) {
-      _isAITurn = _gameState!.giocatoreAttivo.name == 'AI Tunué';
+      _isAITurn = _gameState!.giocatoreAttivo.name == 'Bombo';
       print('DEBUG: È turno AI: $_isAITurn');
       if (_isAITurn) {
         iniziaTurno();
@@ -106,10 +112,28 @@ class CardGameService {
       onEnergyAdded?.call();
     }
 
-    // Fase Pesca: pesca 1 carta automaticamente
-    _gameState!.giocatoreAttivo.pescaCarta();
-    print(
-        'DEBUG: Carta pescata, carte in mano: ${_gameState!.giocatoreAttivo.mano.length}');
+    // Fase Pesca: pesca 1 carta automaticamente (solo dal secondo turno)
+    if (!_gameState!.isPrimoTurno) {
+      final giocatore = _gameState!.giocatoreAttivo;
+      final isPlayerTurn = giocatore.name != 'Bombo';
+
+      // Memorizza la carta prima di pescarla per il callback
+      GameCard? cartaPescata;
+      if (giocatore.mazzo.isNotEmpty) {
+        cartaPescata = giocatore.mazzo.first;
+      }
+
+      giocatore.pescaCarta();
+
+      // Chiama il callback per l'animazione della carta pescata
+      if (cartaPescata != null) {
+        onCardDrawn?.call(cartaPescata, isPlayerTurn);
+      }
+
+      print('DEBUG: Carta pescata, carte in mano: ${giocatore.mano.length}');
+    } else {
+      print('DEBUG: Primo turno - pesca saltata');
+    }
 
     // Vai direttamente alla fase principale
     _currentPhase = GamePhase.principale;
@@ -135,8 +159,9 @@ class CardGameService {
 
     final giocatore = _gameState!.giocatoreAttivo;
 
-    // Verifica energia
-    if (giocatore.energia < carta.cost) return false;
+    // Verifica energia (con costo effettivo che considera effetti ambientazione)
+    final costoEffettivo = _calcolaCostoEffettivo(carta);
+    if (giocatore.energia < costoEffettivo) return false;
 
     // Verifica spazio nel campo
     if (carta is PersonaggioCard && !giocatore.hasSpaceForPersonaggio)
@@ -170,10 +195,12 @@ class CardGameService {
     if (!puoiGiocareCarta(carta)) return false;
 
     final giocatore = _gameState!.giocatoreAttivo;
+    final isPlayerAction = giocatore.name != 'Bombo';
 
-    // Rimuovi carta dalla mano e paga energia
+    // Rimuovi carta dalla mano e paga energia (costo effettivo)
+    final costoEffettivo = _calcolaCostoEffettivo(carta);
     giocatore.mano.remove(carta);
-    giocatore.energia -= carta.cost;
+    giocatore.energia -= costoEffettivo;
 
     // Gioca la carta
     if (carta is PersonaggioCard) {
@@ -185,6 +212,43 @@ class CardGameService {
     } else if (carta is InterazioneCard) {
       giocatore.addInterazioneToField(carta);
       _applicaEffettoInterazione(carta);
+    }
+
+    // Chiamata al callback DOPO che l'azione è stata eseguita
+    if (isPlayerAction) {
+      onPlayerAction?.call('Giocatore gioca "${carta.name}"');
+    }
+
+    return true;
+  }
+
+  // Nuovo metodo per giocare una carta in una posizione specifica
+  bool giocaCartaInPosizione(GameCard carta, int targetIndex) {
+    if (!puoiGiocareCarta(carta)) return false;
+
+    final giocatore = _gameState!.giocatoreAttivo;
+    final isPlayerAction = giocatore.name != 'Bombo';
+
+    // Rimuovi carta dalla mano e paga energia (costo effettivo)
+    final costoEffettivo = _calcolaCostoEffettivo(carta);
+    giocatore.mano.remove(carta);
+    giocatore.energia -= costoEffettivo;
+
+    // Gioca la carta nella posizione specifica
+    if (carta is PersonaggioCard) {
+      giocatore.addPersonaggioToSpecificPosition(carta, targetIndex);
+      _applicaEffettoPersonaggio(carta);
+    } else if (carta is AmbientazioneCard) {
+      _gameState!.cambiaAmbientazione(carta);
+      _applicaEffettoAmbientazione(carta);
+    } else if (carta is InterazioneCard) {
+      giocatore.addInterazioneToSpecificPosition(carta, targetIndex);
+      _applicaEffettoInterazione(carta);
+    }
+
+    // Chiamata al callback DOPO che l'azione è stata eseguita
+    if (isPlayerAction) {
+      onPlayerAction?.call('Giocatore gioca "${carta.name}"');
     }
 
     return true;
@@ -224,18 +288,29 @@ class CardGameService {
     final attaccante =
         _gameState!.giocatoreAttivo.zonePersonaggi[indexAttaccante]!;
     final avversario = _gameState!.avversario;
+    final isPlayerAction = _gameState!.giocatoreAttivo.name != 'Bombo';
 
     // Marca il personaggio come "ha attaccato questo turno"
     _attackedThisTurn.add(attaccante.id);
 
+    String attackMessage;
     if (indexDifensore != null &&
         avversario.zonePersonaggi[indexDifensore] != null) {
       // Attacco contro un personaggio
       final difensore = avversario.zonePersonaggi[indexDifensore]!;
+      attackMessage = 'attacca: ${attaccante.name} vs ${difensore.name}';
       _risolviScontro(attaccante, difensore, indexAttaccante, indexDifensore);
     } else if (!avversario.haPersonaggiInCampo) {
       // Attacco diretto alle vite SOLO se l'avversario non ha personaggi in campo
       avversario.vite--;
+      attackMessage = 'attacca direttamente con ${attaccante.name}';
+    } else {
+      attackMessage = 'attacca con ${attaccante.name}';
+    }
+
+    // Chiamata al callback DOPO che l'azione è stata eseguita
+    if (isPlayerAction) {
+      onPlayerAction?.call('Giocatore $attackMessage');
     }
   }
 
@@ -305,6 +380,26 @@ class CardGameService {
     return 0;
   }
 
+  // Calcola il costo effettivo di una carta considerando gli effetti ambientazione
+  int _calcolaCostoEffettivo(GameCard carta) {
+    int costo = carta.cost;
+
+    // Applica effetti ambientazione
+    if (_gameState!.ambientazioneAttiva != null) {
+      final ambientazione = _gameState!.ambientazioneAttiva!;
+
+      // Casa di Zick: "Le Carte Personaggio di Monster Allergy costano 1 Energia in meno per essere giocate"
+      if (ambientazione.name == "Casa di Zick" &&
+          carta is PersonaggioCard &&
+          carta.series == CardSeries.monsterAllergy) {
+        costo -= 1;
+      }
+    }
+
+    // Il costo non può mai essere minore di 0
+    return costo < 0 ? 0 : costo;
+  }
+
   int _calcolaModificatoreInterazione(
       PersonaggioCard personaggio, InterazioneCard interazione) {
     // Implementa logica specifica per ogni interazione
@@ -312,79 +407,108 @@ class CardGameService {
   }
 
   void _applicaEffettoPersonaggio(PersonaggioCard carta) {
+    // Solo mostra gli effetti se è il giocatore umano a giocare la carta
+    final isHumanPlayer = _gameState!.giocatoreAttivo.name != 'Bombo';
+
     // Implementa gli effetti specifici dei personaggi
     switch (carta.name) {
       case "Zick":
-        _effettoZick();
+        _effettoZick(isHumanPlayer);
         break;
       case "Timothy Moth":
-        _effettoTimothy();
+        _effettoTimothy(isHumanPlayer);
         break;
       case "Bombo":
-        _effettoBombo();
+        _effettoBombo(isHumanPlayer);
         break;
       case "Magnacat":
-        _effettoMagnacat();
+        _effettoMagnacat(isHumanPlayer);
         break;
     }
   }
 
   void _applicaEffettoAmbientazione(AmbientazioneCard carta) {
     // Gli effetti ambientazione sono applicati passivamente
+    // Mostra messaggio di attivazione solo se è il giocatore umano a giocare la carta
+    final isHumanPlayer = _gameState!.giocatoreAttivo.name != 'Bombo';
+
+    if (isHumanPlayer) {
+      switch (carta.name) {
+        case "Casa di Zick":
+          onEffectActivated?.call(
+              "Casa di Zick attiva: I personaggi Monster Allergy costano 1 energia in meno!");
+          break;
+        case "Città dei Mostri":
+          onEffectActivated?.call(
+              "Città dei Mostri attiva: I personaggi Monster Allergy ottengono +1 Forza!");
+          break;
+      }
+    }
   }
 
   void _applicaEffettoInterazione(InterazioneCard carta) {
+    // Solo mostra gli effetti se è il giocatore umano a giocare la carta
+    final isHumanPlayer = _gameState!.giocatoreAttivo.name != 'Bombo';
+
     // Implementa gli effetti specifici delle interazioni
     switch (carta.name) {
       case "A caccia di mostri":
-        _effettoCacciaMostri();
+        _effettoCacciaMostri(isHumanPlayer);
         break;
       case "Lotta Marina":
-        _effettoLottaMarina();
+        _effettoLottaMarina(isHumanPlayer);
         break;
       case "Lavoro di Squadra":
-        _effettoLavoroSquadra();
+        _effettoLavoroSquadra(isHumanPlayer);
         break;
       case "Fame Carnivora":
-        _effettoFameCarnivora();
+        _effettoFameCarnivora(isHumanPlayer);
         break;
       case "In un mare di guai":
-        _effettoMareGuai();
+        _effettoMareGuai(isHumanPlayer);
         break;
       case "Ritirata":
-        _effettoRitirata();
+        _effettoRitirata(isHumanPlayer);
         break;
     }
   }
 
-  void _effettoZick() {
+  void _effettoZick(bool showEffect) {
     // "Quando entra in campo, guarda la carta in cima al mazzo dell'avversario"
     final avversario = _gameState!.avversario;
     if (avversario.mazzo.isNotEmpty) {
       // In una UI reale si mostrerebbe la carta al giocatore
-      // Per ora registriamo l'effetto come attivato
-      onEffectActivated?.call(
-          "Zick: Carta in cima al mazzo avversario è ${avversario.mazzo.first.name}!");
+      // Per ora registriamo l'effetto come attivato solo se è il giocatore umano
+      if (showEffect) {
+        onEffectActivated?.call(
+            "Zick: Carta in cima al mazzo avversario è ${avversario.mazzo.first.name}!");
+      }
     } else {
-      onEffectActivated?.call("Zick: Il mazzo avversario è vuoto!");
+      if (showEffect) {
+        onEffectActivated?.call("Zick: Il mazzo avversario è vuoto!");
+      }
     }
   }
 
-  void _effettoTimothy() {
+  void _effettoTimothy(bool showEffect) {
     // "Quando entra in campo, guarda la mano dell'avversario"
     final avversario = _gameState!.avversario;
     if (avversario.mano.isNotEmpty) {
       // In una UI reale si mostrerebbe la mano al giocatore
-      String carteInMano =
-          avversario.mano.map((carta) => carta.name).join(", ");
-      onEffectActivated
-          ?.call("Timothy: Mano avversario contiene: $carteInMano");
+      if (showEffect) {
+        String carteInMano =
+            avversario.mano.map((carta) => carta.name).join(", ");
+        onEffectActivated
+            ?.call("Timothy: Mano avversario contiene: $carteInMano");
+      }
     } else {
-      onEffectActivated?.call("Timothy: L'avversario non ha carte in mano!");
+      if (showEffect) {
+        onEffectActivated?.call("Timothy: L'avversario non ha carte in mano!");
+      }
     }
   }
 
-  void _effettoBombo() {
+  void _effettoBombo(bool showEffect) {
     // "Quando entra in campo, pesca 1 carta dal tuo mazzo o dal mazzo dell'avversario"
     final giocatore = _gameState!.giocatoreAttivo;
     final avversario = _gameState!.avversario;
@@ -393,15 +517,20 @@ class CardGameService {
     if (giocatore.mazzo.isNotEmpty) {
       final cartaPescata = giocatore.mazzo.first;
       giocatore.pescaCarta();
-      onEffectActivated
-          ?.call("Bombo: Pescata ${cartaPescata.name} dal tuo mazzo!");
+      if (showEffect) {
+        onEffectActivated?.call("Pescata ${cartaPescata.name} dal tuo mazzo!");
+      }
     } else if (avversario.mazzo.isNotEmpty) {
       final cartaPescata = avversario.mazzo.removeAt(0);
       giocatore.mano.add(cartaPescata);
-      onEffectActivated
-          ?.call("Bombo: Pescata ${cartaPescata.name} dal mazzo avversario!");
+      if (showEffect) {
+        onEffectActivated
+            ?.call("Pescata ${cartaPescata.name} dal mazzo avversario!");
+      }
     } else {
-      onEffectActivated?.call("Bombo: Nessun mazzo disponibile per pescare!");
+      if (showEffect) {
+        onEffectActivated?.call("Nessun mazzo disponibile per pescare!");
+      }
     }
   }
 
@@ -416,7 +545,7 @@ class CardGameService {
     return false;
   }
 
-  void _effettoMagnacat() {
+  void _effettoMagnacat(bool showEffect) {
     // "Quando entra in campo, distruggi/aggiungi alla tua mano/prendi il controllo di 1 Carta dell'avversario"
     final avversario = _gameState!.avversario;
     final giocatore = _gameState!.giocatoreAttivo;
@@ -436,8 +565,10 @@ class CardGameService {
         // Per ora aggiungiamo alla mano (effetto più semplice da gestire)
         avversario.removePersonaggioFromField(i);
         giocatore.mano.add(cartaTarget);
-        onEffectActivated?.call(
-            "Magnacat: ${cartaTarget.name} rubato dal campo avversario!");
+        if (showEffect) {
+          onEffectActivated?.call(
+              "Magnacat: ${cartaTarget.name} rubato dal campo avversario!");
+        }
         cartaTrovata = true;
         break;
       }
@@ -452,8 +583,10 @@ class CardGameService {
           final cartaTarget = avversario.zoneInterazioni[i]!;
           avversario.zoneInterazioni[i] = null;
           giocatore.mano.add(cartaTarget);
-          onEffectActivated?.call(
-              "Magnacat: ${cartaTarget.name} rubato dalle interazioni avversarie!");
+          if (showEffect) {
+            onEffectActivated?.call(
+                "Magnacat: ${cartaTarget.name} rubato dalle interazioni avversarie!");
+          }
           cartaTrovata = true;
           break;
         }
@@ -461,12 +594,14 @@ class CardGameService {
     }
 
     if (!cartaTrovata) {
-      onEffectActivated?.call(
-          "Magnacat: Nessuna carta rubabile trovata nel campo avversario!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "Magnacat: Nessuna carta rubabile trovata nel campo avversario!");
+      }
     }
   }
 
-  void _effettoCacciaMostri() {
+  void _effettoCacciaMostri(bool showEffect) {
     // "Aggiungi 1 Carta Personaggio "Zick" o "Elena" dal tuo mazzo o cimitero alla tua mano."
     final giocatore = _gameState!.giocatoreAttivo;
 
@@ -482,8 +617,10 @@ class CardGameService {
       giocatore.mazzo.remove(cartaScelta);
       giocatore.mano.add(cartaScelta);
       giocatore.mischiaMazzo();
-      onEffectActivated?.call(
-          "A caccia di mostri: ${cartaScelta.name} aggiunto alla mano dal mazzo!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "A caccia di mostri: ${cartaScelta.name} aggiunto alla mano dal mazzo!");
+      }
       return;
     }
 
@@ -498,21 +635,27 @@ class CardGameService {
       final cartaScelta = cartaDalCimitero.first;
       giocatore.cimitero.remove(cartaScelta);
       giocatore.mano.add(cartaScelta);
-      onEffectActivated?.call(
-          "A caccia di mostri: ${cartaScelta.name} aggiunto alla mano dal cimitero!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "A caccia di mostri: ${cartaScelta.name} aggiunto alla mano dal cimitero!");
+      }
     } else {
-      onEffectActivated
-          ?.call("A caccia di mostri: Nessun Zick o Elena trovato!");
+      if (showEffect) {
+        onEffectActivated
+            ?.call("A caccia di mostri: Nessun Zick o Elena trovato!");
+      }
     }
   }
 
-  void _effettoLottaMarina() {
+  void _effettoLottaMarina(bool showEffect) {
     // "Puoi giocare questa carta soltanto se in campo è presente 1 Carta Ambientazione; distruggila. Puoi aggiungere 1 Carta Ambientazione dal tuo mazzo alla mano."
     if (_gameState!.ambientazioneAttiva != null) {
       final nomeAmbientazione = _gameState!.ambientazioneAttiva!.name;
       // Distruggi l'ambientazione attiva
       _gameState!.ambientazioneAttiva = null;
-      onEffectActivated?.call("Lotta Marina: $nomeAmbientazione distrutto!");
+      if (showEffect) {
+        onEffectActivated?.call("Lotta Marina: $nomeAmbientazione distrutto!");
+      }
 
       // Cerca una carta ambientazione nel mazzo
       final giocatore = _gameState!.giocatoreAttivo;
@@ -524,13 +667,15 @@ class CardGameService {
         giocatore.mazzo.remove(nuovaAmbientazione);
         giocatore.mano.add(nuovaAmbientazione);
         giocatore.mischiaMazzo();
-        onEffectActivated?.call(
-            "Lotta Marina: ${nuovaAmbientazione.name} aggiunto alla mano!");
+        if (showEffect) {
+          onEffectActivated?.call(
+              "Lotta Marina: ${nuovaAmbientazione.name} aggiunto alla mano!");
+        }
       }
     }
   }
 
-  void _effettoLavoroSquadra() {
+  void _effettoLavoroSquadra(bool showEffect) {
     // "Puoi giocare questa carta soltanto se controlli 1 Carta Personaggio "Zick" o "Elena". Gioca (direttamente dal tuo mazzo, senza pagarne il costo) 1 Carta Personaggio "Zick" o "Elena"."
     final giocatore = _gameState!.giocatoreAttivo;
 
@@ -552,22 +697,28 @@ class CardGameService {
         giocatore.addPersonaggioToField(personaggioScelto);
         giocatore.mischiaMazzo();
 
-        onEffectActivated?.call(
-            "Lavoro di Squadra: ${personaggioScelto.name} entra in campo!");
+        if (showEffect) {
+          onEffectActivated?.call(
+              "Lavoro di Squadra: ${personaggioScelto.name} entra in campo!");
+        }
 
         // Applica l'effetto del personaggio entrato in campo
         _applicaEffettoPersonaggio(personaggioScelto);
       } else if (!giocatore.hasSpaceForPersonaggio) {
-        onEffectActivated
-            ?.call("Lavoro di Squadra: Nessuno spazio disponibile!");
+        if (showEffect) {
+          onEffectActivated
+              ?.call("Lavoro di Squadra: Nessuno spazio disponibile!");
+        }
       } else {
-        onEffectActivated
-            ?.call("Lavoro di Squadra: Nessun Zick o Elena nel mazzo!");
+        if (showEffect) {
+          onEffectActivated
+              ?.call("Lavoro di Squadra: Nessun Zick o Elena nel mazzo!");
+        }
       }
     }
   }
 
-  void _effettoFameCarnivora() {
+  void _effettoFameCarnivora(bool showEffect) {
     // "Guarda la mano del tuo avversario. Scegli ed aggiungi 1 Carta dalla mano del tuo avversario alla tua mano."
     final avversario = _gameState!.avversario;
     final giocatore = _gameState!.giocatoreAttivo;
@@ -594,15 +745,19 @@ class CardGameService {
 
       avversario.mano.remove(cartaDaRubare);
       giocatore.mano.add(cartaDaRubare);
-      onEffectActivated?.call(
-          "Fame Carnivora: ${cartaDaRubare.name} rubato dalla mano avversaria!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "Fame Carnivora: ${cartaDaRubare.name} rubato dalla mano avversaria!");
+      }
     } else {
-      onEffectActivated
-          ?.call("Fame Carnivora: L'avversario non ha carte in mano!");
+      if (showEffect) {
+        onEffectActivated
+            ?.call("Fame Carnivora: L'avversario non ha carte in mano!");
+      }
     }
   }
 
-  void _effettoMareGuai() {
+  void _effettoMareGuai(bool showEffect) {
     // "Mischia nel mazzo 2 Carte Personaggio dalla tua mano. Rivela ed aggiungi fino a 2 Carte Personaggio dal tuo mazzo alla mano."
     final giocatore = _gameState!.giocatoreAttivo;
 
@@ -611,8 +766,10 @@ class CardGameService {
         giocatore.mano.whereType<PersonaggioCard>().toList();
 
     if (personaggiInMano.isEmpty) {
-      onEffectActivated?.call(
-          "In un mare di guai: Nessun personaggio in mano da rimescolare!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "In un mare di guai: Nessun personaggio in mano da rimescolare!");
+      }
       return;
     }
 
@@ -629,8 +786,10 @@ class CardGameService {
     }
     giocatore.mischiaMazzo();
 
-    onEffectActivated?.call(
-        "In un mare di guai: ${nomiMischiati.join(' e ')} rimescolati nel mazzo!");
+    if (showEffect) {
+      onEffectActivated?.call(
+          "In un mare di guai: ${nomiMischiati.join(' e ')} rimescolati nel mazzo!");
+    }
 
     // Pesca fino a 2 carte personaggio dal mazzo
     final personaggiDalMazzo =
@@ -645,15 +804,19 @@ class CardGameService {
     giocatore.mischiaMazzo();
 
     if (nomiPescati.isNotEmpty) {
-      onEffectActivated?.call(
-          "In un mare di guai: ${nomiPescati.join(' e ')} aggiunti alla mano!");
+      if (showEffect) {
+        onEffectActivated?.call(
+            "In un mare di guai: ${nomiPescati.join(' e ')} aggiunti alla mano!");
+      }
     } else {
-      onEffectActivated
-          ?.call("In un mare di guai: Nessun personaggio trovato nel mazzo!");
+      if (showEffect) {
+        onEffectActivated
+            ?.call("In un mare di guai: Nessun personaggio trovato nel mazzo!");
+      }
     }
   }
 
-  void _effettoRitirata() {
+  void _effettoRitirata(bool showEffect) {
     // "Fai tornare 1 dei tuoi Personaggi nella tua mano."
     final giocatore = _gameState!.giocatoreAttivo;
 
@@ -663,14 +826,18 @@ class CardGameService {
         final personaggio = giocatore.zonePersonaggi[i]!;
         giocatore.removePersonaggioFromField(i);
         giocatore.mano.add(personaggio);
-        onEffectActivated
-            ?.call("Ritirata: ${personaggio.name} torna nella tua mano!");
+        if (showEffect) {
+          onEffectActivated
+              ?.call("Ritirata: ${personaggio.name} torna nella tua mano!");
+        }
         return;
       }
     }
 
-    onEffectActivated
-        ?.call("Ritirata: Nessun personaggio in campo da far ritirare!");
+    if (showEffect) {
+      onEffectActivated
+          ?.call("Ritirata: Nessun personaggio in campo da far ritirare!");
+    }
   }
 
   void fineTurno() {
@@ -690,7 +857,7 @@ class CardGameService {
 
     // Aggiorna se è il turno dell'AI
     if (_isAIGame) {
-      _isAITurn = _gameState!.giocatoreAttivo.name == 'AI Tunué';
+      _isAITurn = _gameState!.giocatoreAttivo.name == 'Bombo';
       print('DEBUG: È turno AI: $_isAITurn');
     }
 
@@ -719,8 +886,6 @@ class CardGameService {
         final decision =
             await _aiService.makeDecision(_gameState!, _currentPhase);
 
-        onAIAction?.call('AI: ${decision.reasoning}');
-
         final success = await _executeAIDecision(decision);
 
         if (!success) {
@@ -740,10 +905,11 @@ class CardGameService {
   Future<bool> _executeAIDecision(AIDecision decision) async {
     switch (decision.action) {
       case AIAction.playCard:
-        return _aiPlayCard(decision.cardName);
+        return _aiPlayCard(decision.cardName, decision);
 
       case AIAction.attack:
-        return _aiAttack(decision.attackerIndex, decision.targetIndex);
+        return _aiAttack(
+            decision.attackerIndex, decision.targetIndex, decision);
 
       case AIAction.nextPhase:
         _nextPhase();
@@ -751,7 +917,7 @@ class CardGameService {
     }
   }
 
-  bool _aiPlayCard(String? cardName) {
+  bool _aiPlayCard(String? cardName, AIDecision decision) {
     if (cardName == null || _gameState == null) return false;
 
     final ai = _gameState!.giocatoreAttivo;
@@ -762,17 +928,41 @@ class CardGameService {
 
     if (puoiGiocareCarta(card)) {
       giocaCarta(card);
+
+      // Chiamata al callback DOPO che l'azione è stata eseguita con un delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        onAIAction?.call('AI gioca "$cardName"');
+      });
+
       return true;
     }
 
     return false;
   }
 
-  bool _aiAttack(int? attackerIndex, int? targetIndex) {
+  bool _aiAttack(int? attackerIndex, int? targetIndex, AIDecision decision) {
     if (attackerIndex == null || _gameState == null) return false;
 
     if (puoiAttaccare(attackerIndex)) {
+      final ai = _gameState!.giocatoreAttivo;
+      final attacker = ai.zonePersonaggi[attackerIndex];
+      String attackMessage;
+
+      if (targetIndex != null) {
+        final human = _gameState!.avversario;
+        final target = human.zonePersonaggi[targetIndex];
+        attackMessage = 'AI attacca: ${attacker?.name} vs ${target?.name}';
+      } else {
+        attackMessage = 'AI attacca direttamente con ${attacker?.name}';
+      }
+
       attaccaConPersonaggio(attackerIndex, targetIndex);
+
+      // Chiamata al callback DOPO che l'azione è stata eseguita con un delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        onAIAction?.call(attackMessage);
+      });
+
       return true;
     }
 
