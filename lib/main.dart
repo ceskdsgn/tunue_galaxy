@@ -1,6 +1,6 @@
-// main.dart
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
@@ -25,6 +25,12 @@ void main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
+  );
+
+  // 👉 Nasconde solo la barra di navigazione inferiore, lascia visibile la status bar
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.manual,
+    overlays: [SystemUiOverlay.top],
   );
 
   runApp(
@@ -67,7 +73,6 @@ class _MyAppState extends State<MyApp> {
       _hasInternetConnection = connectivityResult != ConnectivityResult.none;
     });
 
-    // Ascolta i cambiamenti della connessione
     Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       setState(() {
         _hasInternetConnection = result != ConnectivityResult.none;
@@ -82,14 +87,12 @@ class _MyAppState extends State<MyApp> {
       final user = event.session?.user;
       if (user != null) {
         try {
-          // Recupera i dati del profilo
           final profile = await Supabase.instance.client
               .from('profiles')
               .select()
               .eq('id', user.id)
               .single();
 
-          // Converti le carte possedute da JSON a oggetti
           List<CollectionCard> ownedCards = [];
           if (profile['owned_cards'] != null &&
               profile['owned_cards'] is List) {
@@ -98,7 +101,6 @@ class _MyAppState extends State<MyApp> {
             }
           }
 
-          // Aggiorna i dati utente se autenticato
           userModel.update(
             id: user.id,
             username: user.userMetadata?['username'] ?? 'Collezionista',
@@ -116,7 +118,6 @@ class _MyAppState extends State<MyApp> {
           );
         } catch (e) {
           print('Errore nel caricamento del profilo: $e');
-          // In caso di errore, usa i valori di default
           userModel.update(
             id: user.id,
             username: user.userMetadata?['username'] ?? 'Collezionista',
@@ -129,7 +130,6 @@ class _MyAppState extends State<MyApp> {
           );
         }
       } else {
-        // Resetta i dati utente se non autenticato
         userModel.reset();
       }
 
@@ -191,7 +191,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final user = Provider.of<User>(context);
 
-    // Controlla se l'utente è autenticato
     if (!user.isAuthenticated) {
       return const LoginScreen();
     }

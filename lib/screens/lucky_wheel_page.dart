@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../models/card.dart';
@@ -40,8 +40,12 @@ class LuckyWheelPage extends StatefulWidget {
 }
 
 class _LuckyWheelPageState extends State<LuckyWheelPage>
-    with SingleTickerProviderStateMixin {
-  StreamController<int> controller = StreamController<int>();
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  late AnimationController _animationController;
+  late Animation<double> _resultAnimation;
+
   int selected = 0;
   bool isSpinning = false;
   bool showResult = false;
@@ -49,8 +53,6 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
   bool isOpeningPack = false;
   bool packOpened = false;
   String resultMessage = '';
-  late AnimationController _animationController;
-  late Animation<double> _animation;
   List<CollectionCard>? drawnCards;
 
   // Definizione dei premi disponibili
@@ -60,12 +62,25 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
   void initState() {
     super.initState();
 
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutQuart,
+    ));
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
 
-    _animation = CurvedAnimation(
+    _resultAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
     );
@@ -85,14 +100,11 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
           final cardService = CardService();
           await cardService.loadCards();
 
-          // Trova un pacchetto casuale
           final supabaseService = SupabaseService();
           final packs = await supabaseService.getAllPacks();
           if (packs.isEmpty) return;
 
           final randomPack = packs[Random().nextInt(packs.length)];
-
-          // Crea una carta rara
           final List<CollectionCard> rareCards = cardService
               .getCardsByRarityAndPack(CardRarity.rare, randomPack.id);
           if (rareCards.isEmpty) return;
@@ -112,14 +124,11 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
           final cardService = CardService();
           await cardService.loadCards();
 
-          // Trova un pacchetto casuale
           final supabaseService = SupabaseService();
           final packs = await supabaseService.getAllPacks();
           if (packs.isEmpty) return;
 
           final randomPack = packs[Random().nextInt(packs.length)];
-
-          // Crea una carta super-rara
           final List<CollectionCard> superRareCards = cardService
               .getCardsByRarityAndPack(CardRarity.superRare, randomPack.id);
           if (superRareCards.isEmpty) return;
@@ -140,14 +149,11 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
           final cardService = CardService();
           await cardService.loadCards();
 
-          // Trova un pacchetto casuale
           final supabaseService = SupabaseService();
           final packs = await supabaseService.getAllPacks();
           if (packs.isEmpty) return;
 
           final randomPack = packs[Random().nextInt(packs.length)];
-
-          // Crea una carta ultra-rara
           final List<CollectionCard> ultraRareCards = cardService
               .getCardsByRarityAndPack(CardRarity.ultraRare, randomPack.id);
           if (ultraRareCards.isEmpty) return;
@@ -164,7 +170,6 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
         icon: Icons.monetization_on,
         specialPack: SpecialPack.coinPack(),
         onWin: (context, user) async {
-          // Non ci sono carte per questo premio
           drawnCards = [];
         },
       ),
@@ -178,7 +183,6 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
           final cardService = CardService();
           await cardService.loadCards();
 
-          // Trova il pacchetto Fire Destruction
           final supabaseService = SupabaseService();
           final packs = await supabaseService.getAllPacks();
           final firePack = packs.firstWhere(
@@ -193,7 +197,6 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
                     image: 'https://example.com/image.jpg'),
           );
 
-          // Ottieni 5 carte casuali dal pacchetto
           final cards = cardService.getRandomCards(5, firePack.id);
           drawnCards = cards;
         },
@@ -205,7 +208,6 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
         icon: Icons.do_not_disturb,
         specialPack: SpecialPack.emptyPack(),
         onWin: (context, user) {
-          // Non fa nulla
           drawnCards = [];
         },
       ),
@@ -214,13 +216,13 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
 
   @override
   void dispose() {
-    controller.close();
+    _controller.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   void _spinWheel() {
-    if (isSpinning) return;
+    if (_controller.isAnimating) return;
 
     setState(() {
       isSpinning = true;
@@ -231,33 +233,48 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
       drawnCards = null;
     });
 
-    // Genera un numero casuale per il premio
     final random = Random();
-    final randomIndex = random.nextInt(prizes.length);
+    final randomRotations = 5 + random.nextDouble() * 5; // 5-10 giri
 
-    // Spinner gira per 5 secondi poi si ferma al premio casuale
-    controller.add(randomIndex);
+    _animation = Tween<double>(
+      begin: _animation.value,
+      end: _animation.value + randomRotations,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutQuart,
+    ));
 
-    // Attendi la fine dell'animazione
-    Future.delayed(const Duration(milliseconds: 5000), () {
+    _controller.forward(from: 0.0).then((_) {
+      _determineWinner();
+    });
+  }
+
+  void _determineWinner() {
+    final rotations = _animation.value;
+    final normalizedRotation = (rotations * 2 * pi) % (2 * pi);
+    final segmentAngle = 2 * pi / prizes.length;
+
+    // Calcola quale segmento è in cima (invertito perché la ruota gira in senso orario)
+    int winnerIndex = ((2 * pi - normalizedRotation) / segmentAngle).floor();
+    winnerIndex = winnerIndex % prizes.length;
+
+    setState(() {
+      selected = winnerIndex;
+      isSpinning = false;
+      showResult = true;
+      resultMessage = prizes[winnerIndex].description;
+    });
+
+    _animationController.forward();
+
+    // Prepara il premio per l'utente
+    final user = Provider.of<User>(context, listen: false);
+    prizes[winnerIndex].onWin(context, user);
+
+    // Mostra il pacchetto dopo un breve ritardo
+    Future.delayed(const Duration(milliseconds: 1000), () {
       setState(() {
-        selected = randomIndex;
-        isSpinning = false;
-        showResult = true;
-        resultMessage = prizes[randomIndex].description;
-      });
-
-      _animationController.forward();
-
-      // Prepara il premio per l'utente
-      final user = Provider.of<User>(context, listen: false);
-      prizes[randomIndex].onWin(context, user);
-
-      // Mostra il pacchetto dopo un breve ritardo
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        setState(() {
-          showPack = true;
-        });
+        showPack = true;
       });
     });
   }
@@ -302,144 +319,153 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
     final wheelSize = size.width * 0.9;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ruota della Fortuna'),
-      ),
       body: Stack(
         children: [
           // Contenuto principale
           SingleChildScrollView(
-            child: Center(
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Gira la ruota e vinci premi!',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: Column(
+              children: [
+                // Header personalizzato
+                Container(
+                  width: double.infinity,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x3FC0C0C0),
+                        blurRadius: 16,
+                        offset: Offset(0, 4),
+                        spreadRadius: 4,
+                      )
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Puoi vincere carte rare, monete o pacchetti gratuiti',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    height: wheelSize,
-                    width: wheelSize,
-                    child: FortuneWheel(
-                      selected: controller.stream,
-                      animateFirst: false,
-                      duration: const Duration(seconds: 5),
-                      indicators: const [
-                        FortuneIndicator(
-                          alignment: Alignment.topCenter,
-                          child: TriangleIndicator(
-                            color: Colors.red,
+                  child: Stack(
+                    children: [
+                      const Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 15),
+                          child: Text(
+                            'Ruota della Fortuna',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 54, 55, 58),
+                              fontSize: 18,
+                              fontFamily: 'NeueHaasDisplay',
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ],
-                      items: [
-                        for (var prize in prizes)
-                          FortuneItem(
-                            style: FortuneItemStyle(
-                              color: prize.color,
-                              borderColor: Colors.white,
-                              borderWidth: 2,
+                      ),
+                      // Pulsante back
+                      Positioned(
+                        left: 20,
+                        bottom: 15,
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: SvgPicture.asset(
+                            'assets/images/icons/svg/arrow_icon.svg',
+                            width: 20,
+                            height: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: wheelSize,
+                  height: wheelSize,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _animation,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _animation.value * 2 * pi,
+                            child: CustomPaint(
+                              size: Size(wheelSize, wheelSize),
+                              painter: WheelPainter(prizes),
                             ),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 60, right: 20),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    prize.icon,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      prize.name,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                      textAlign: TextAlign.left,
-                                    ),
-                                  ),
-                                ],
+                          );
+                        },
+                      ),
+                      // Indicatore fisso in cima
+                      Positioned(
+                        top: 0,
+                        child: Container(
+                          width: 0,
+                          height: 0,
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                width: 15,
+                                color: Colors.transparent,
+                              ),
+                              right: BorderSide(
+                                width: 15,
+                                color: Colors.transparent,
+                              ),
+                              bottom: BorderSide(
+                                width: 30,
+                                color: Colors.red,
                               ),
                             ),
                           ),
-                      ],
-                      onAnimationEnd: () {
-                        // L'animazione è terminata
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: isSpinning || showPack ? null : _spinWheel,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 15),
-                      textStyle: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Text(isSpinning ? 'Girando...' : 'Gira la Ruota'),
-                  ),
-                  const SizedBox(height: 30),
-                  // Visualizzazione risultato
-                  if (showResult && !showPack)
-                    ScaleTransition(
-                      scale: _animation,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: prizes[selected].color.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                              color: prizes[selected].color, width: 2),
                         ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              prizes[selected].icon,
-                              size: 60,
+                      ),
+                      // Bottone centrale
+                      GestureDetector(
+                        onTap: isSpinning || showPack ? null : _spinWheel,
+                        child: Image.asset(
+                          'assets/images/icons/png/lucky-wheel_icon.png',
+                          width: wheelSize * 0.25,
+                          height: wheelSize * 0.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                // Visualizzazione risultato
+                if (showResult && !showPack)
+                  ScaleTransition(
+                    scale: _resultAnimation,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: prizes[selected].color.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(15),
+                        border:
+                            Border.all(color: prizes[selected].color, width: 2),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            prizes[selected].icon,
+                            size: 60,
+                            color: prizes[selected].color,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            resultMessage,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                               color: prizes[selected].color,
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              resultMessage,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: prizes[selected].color,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: 100), // Spazio per il pacchetto
-                ],
-              ),
+                  ),
+                const SizedBox(height: 100), // Spazio per il pacchetto
+              ],
             ),
           ),
 
@@ -755,5 +781,112 @@ class _LuckyWheelPageState extends State<LuckyWheelPage>
         );
       },
     );
+  }
+}
+
+class WheelPainter extends CustomPainter {
+  final List<Prize> prizes;
+
+  WheelPainter(this.prizes);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final segmentAngle = 2 * pi / prizes.length;
+
+    for (int i = 0; i < prizes.length; i++) {
+      final startAngle = i * segmentAngle - pi / 2;
+
+      // Disegna il segmento
+      final paint = Paint()
+        ..color = prizes[i].color.withOpacity(0.8)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        segmentAngle,
+        true,
+        paint,
+      );
+
+      // Disegna il bordo
+      final borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        segmentAngle,
+        true,
+        borderPaint,
+      );
+
+      // Calcola la posizione del testo
+      final textAngle = startAngle + segmentAngle / 2;
+      final textRadius = radius * 0.7;
+      final textX = center.dx + textRadius * cos(textAngle);
+      final textY = center.dy + textRadius * sin(textAngle);
+
+      // Disegna il rettangolo con angoli arrotondati per il testo
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: prizes[i].name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      );
+      textPainter.layout();
+
+      // Rettangolo di sfondo per il testo
+      final textRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(textX, textY),
+          width: textPainter.width + 16,
+          height: textPainter.height + 8,
+        ),
+        const Radius.circular(8),
+      );
+
+      final textBgPaint = Paint()..color = Colors.black.withOpacity(0.3);
+
+      canvas.drawRRect(textRect, textBgPaint);
+
+      // Disegna il testo
+      textPainter.paint(
+        canvas,
+        Offset(
+          textX - textPainter.width / 2,
+          textY - textPainter.height / 2,
+        ),
+      );
+    }
+
+    // Disegna il cerchio centrale
+    final centerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, 30, centerPaint);
+
+    final centerBorderPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawCircle(center, 30, centerBorderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
