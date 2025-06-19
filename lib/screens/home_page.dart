@@ -1263,7 +1263,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(height: 58), // Margin top di 58 pixel
+          const SizedBox(height: 48), // Margin top di 58 pixel
           CountdownTimer(
             duration: user.timeUntilNextFreePack(),
             tunueCoins: user.tunueCoins,

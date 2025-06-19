@@ -59,6 +59,7 @@ flutter:
     - assets/images/storie/
     - assets/videos/
     - assets/models/
+    - assets/ar/
   
   # Fonts personalizzati
   fonts:

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/user.dart';
 import '../services/ai_service.dart';
+import 'ar_scanner_page.dart';
 
 class FairPage extends StatefulWidget {
   const FairPage({super.key});
@@ -491,6 +492,52 @@ class _FairPageState extends State<FairPage> with TickerProviderStateMixin {
                                 fontSize: 18,
                                 fontFamily: 'NeueHaasDisplay',
                                 fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Bottone AR Scanner
+                        Positioned(
+                          left: 20,
+                          bottom: 10,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ARScannerPage(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.cyan.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.cyan.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.camera_alt,
+                                    size: 20,
+                                    color: Color.fromARGB(255, 54, 55, 58),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'AR',
+                                    style: TextStyle(
+                                      color: Color.fromARGB(255, 54, 55, 58),
+                                      fontSize: 12,
+                                      fontFamily: 'NeueHaasDisplay',
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

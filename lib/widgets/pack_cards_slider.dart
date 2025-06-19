@@ -159,10 +159,10 @@ class _PackCardsSliderState extends State<PackCardsSlider>
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: const Color.fromARGB(255, 78, 78, 78).withOpacity(0.25),
+              color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.25),
               blurRadius: 16,
               spreadRadius: 0,
-              offset: const Offset(0, 0),
+              offset: const Offset(0, 4),
             ),
           ],
           borderRadius: BorderRadius.circular(100),
@@ -172,7 +172,7 @@ class _PackCardsSliderState extends State<PackCardsSlider>
           child: Container(
             color: Colors.white,
             width: double.infinity,
-            height: 72,
+            height: 68,
             child: Stack(
               children: [
                 // Carte in uscita (scendono verso il basso)
